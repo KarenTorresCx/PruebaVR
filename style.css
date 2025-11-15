@@ -1,23 +1,26 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { overflow: hidden; background: #000; touch-action: none; font-family: 'Arial', sans-serif; }
+body { overflow: hidden; background: #000; font-family: 'Arial', sans-serif; }
 
-#container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+#container { position: fixed; inset: 0; }
 
-#scoreHUD, #timerHUD {
-  position: absolute; top: 20px; color: #00ffff; font-size: 26px; font-weight: bold;
-  text-shadow: 0 0 12px #00ccff; padding: 10px 20px; border-radius: 10px;
-  background: rgba(0, 20, 40, 0.5); border: 2px solid #00ccff; z-index: 5;
+#score, #timer {
+  position: fixed; top: 20px; color: #0ff; font-weight: bold;
+  font-size: 24px; padding: 8px 16px; background: rgba(0,0,0,0.5);
+  border: 1px solid #0ff; border-radius: 8px; z-index: 10;
 }
-#scoreHUD { left: 20px; }
-#timerHUD { right: 20px; }
+#score { left: 20px; }
+#timer { right: 20px; }
 
-#endScreen {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.9); color: white;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  z-index: 20; text-align: center;
+#vrButton {
+  position: fixed; bottom: 20px; right: 20px; z-index: 100;
 }
-#endScreen h1 { font-size: 38px; color: #00eaff; text-shadow: 0 0 20px #00eaff; }
-#endScreen button {
-  margin-top: 20px; padding: 16px 32px; font-size: 20px; background: #00ccff;
-  border: none; border-radius: 12px; color: #000; font-weight: bold; cursor: pointer;
+
+#gameOver {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+  color: white; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  z-index: 200; font-size: 32px;
 }
+#gameOver h1 { color: #0ff; text-shadow: 0 0 20px #0ff; margin-bottom: 20px; }
+#gameOver .restart { margin-top: 30px; font-size: 20px; color: #0ff; }
+kbd { background: #000; padding: 4px 8px; border: 1px solid #0ff; border-radius: 4px; }
