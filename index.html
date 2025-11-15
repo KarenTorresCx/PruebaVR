@@ -16,23 +16,34 @@
   </script>
 </head>
 <body>
+  <!-- Pantalla de inicio -->
   <div id="startScreen">
     <h1>Simulación de Vuelo VR</h1>
-    <h3>Controles VR / Joystick</h3>
-    <p><b>Joystick Izq/Derecha:</b> Dirección (Roll)</p>
-    <p><b>Joystick Arriba/Abajo:</b> Ascenso/Descenso (Pitch)</p>
+    <h3>Controles</h3>
+    <p><b>Joystick Izq/Derecha:</b> Roll</p>
+    <p><b>Joystick Arriba/Abajo:</b> Pitch</p>
     <p><b>Botón 0 / Trigger:</b> Acelerar</p>
     <p><b>Botón 1:</b> Frenar</p>
-    <p><b>Teclado también funciona</b></p>
-    <button id="startBtn">Iniciar Vuelo VR</button>
+    <p><b>Inclina el móvil:</b> Mirar alrededor</p>
+    <button id="startBtn">Iniciar Juego</button>
   </div>
 
+  <!-- Contenedor 3D -->
   <div id="container"></div>
 
+  <!-- HUD -->
   <div id="scoreHUD">SCORE: 0</div>
   <div id="timerHUD">TIME: 60s</div>
   <div id="debugHUD" style="position: absolute; bottom: 20px; left: 20px; color: #00ff00; font-size: 14px; display: none;"></div>
 
+  <!-- VR Button (aparece solo si hay soporte) -->
+  <div id="vrButtonContainer" style="position: absolute; bottom: 20px; right: 20px; z-index: 100; display: none;">
+    <button id="vrButton" style="padding: 12px 24px; font-size: 16px; background: #00ccff; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 0 15px #00ffff;">
+      Enter VR
+    </button>
+  </div>
+
+  <!-- Pantalla final -->
   <div id="endScreen">
     <div class="end-content">
       <h1>¡Tiempo terminado!</h1>
@@ -46,6 +57,7 @@
   <script>
     document.getElementById('startBtn').addEventListener('click', () => {
       document.getElementById('startScreen').style.display = 'none';
+      document.getElementById('vrButtonContainer').style.display = 'block'; // Mostrar VR button
       document.body.requestFullscreen();
       window.startGame && window.startGame();
     });
