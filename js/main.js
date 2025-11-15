@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VRButton } from 'three/addons/webxr/VRButton.js'; // ← VRButton oficial
+import { VRButton } from 'three/addons/webxr/VRButton.js';
 
 let camera, scene, renderer, clock;
 let player, rings = [];
@@ -10,7 +10,6 @@ let gameTime = 60;
 let gameStarted = false;
 
 // Controles
-let vrControls = null;
 let gamepadConnected = false;
 let currentGamepad = null;
 
@@ -23,57 +22,20 @@ let pitchAngle = 0;
 const rollSensitivity = 2.5;
 const pitchSensitivity = 1.5;
 
-// DeviceOrientationControls manual (para móviles sin VR)
-class DeviceOrientationControls {
-  constructor(object) {
-    this.object = object;
-    this.object.rotation.reorder('YXZ');
-    this.enabled = true;
-    this.deviceOrientation = {};
-    this.screenOrientation = 0;
-
-    const onDeviceOrientation = (event) => {
-      if (event.alpha !== null) {
-        this.deviceOrientation = {
-          alpha: THREE.MathUtils.degToRad(event.alpha),
-          beta: THREE.MathUtils.degToRad(event.beta),
-          gamma: THREE.MathUtils.degToRad(event.gamma)
-        };
-      }
-    };
-
-    const onScreenOrientation = () => {
-      this.screenOrientation = window.orientation || 0;
-    };
-
-    window.addEventListener('deviceorientation', onDeviceOrientation);
-    window.addEventListener('orientationchange', onScreenOrientation);
-
-    this.connect = () => {
-      onScreenOrientation();
-    };
-
-    this.update = () => {
-      if (!this.deviceOrientation.alpha) return;
-      const { alpha, beta, gamma } = this.deviceOrientation;
-      this.object.quaternion.setFromEuler(new THREE.Euler(beta, alpha, -gamma, 'YXZ'));
-    };
-
-    this.dispose = () => {
-      window.removeEventListener('deviceorientation', onDeviceOrientation);
-      window.removeEventListener('orientationchange', onScreenOrientation);
-    };
-  }
-}
+// DeviceOrientation (solo fuera de VR)
+let deviceOrientation = null;
 
 export function startGame() {
-  if (!gameStarted) {
-    gameStarted = true;
-    init();
-    animate();
-  }
+  if (gameStarted) return;
+  gameStarted = true;
+  init();
 }
 window.startGame = startGame;
+
+// === INICIO AUTOMÁTICO ===
+window.addEventListener('load', () => {
+  setTimeout(startGame, 100); // Pequeño delay para que cargue todo
+});
 
 function init() {
   scoreElement = document.getElementById('scoreHUD');
@@ -91,7 +53,7 @@ function init() {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.xr.enabled = true; // ← Necesario para WebXR
+  renderer.xr.enabled = true;
   document.getElementById('container').appendChild(renderer.domElement);
 
   // Escena
@@ -104,13 +66,12 @@ function init() {
 
   // === VR BUTTON ===
   const vrButton = VRButton.createButton(renderer);
-  document.getElementById('vrButton').replaceWith(vrButton);
-  document.getElementById('vrButtonContainer').style.display = 'block';
+  document.getElementById('vrButtonContainer').appendChild(vrButton);
 
-  // Fallback: orientación del dispositivo
+  // === DEVICE ORIENTATION (solo si NO hay VR) ===
   if (!navigator.xr) {
-    vrControls = new DeviceOrientationControls(camera);
-    vrControls.connect();
+    deviceOrientation = new DeviceOrientationControls(camera);
+    deviceOrientation.connect();
   }
 
   // Skybox
@@ -122,14 +83,15 @@ function init() {
 
   // Jugador
   player = new THREE.Object3D();
+  player.position.set(0, 0, 0);
   scene.add(player);
 
-  // Cabina HUD (solo visible en modo no-VR o en VR con overlay)
+  // Cabina HUD (visible en VR y no VR)
   const cabinaTexture = textureLoader.load('textures/avionhud.png');
   const cabinaMaterial = new THREE.MeshBasicMaterial({
     map: cabinaTexture,
     transparent: true,
-    opacity: 0.85,
+    opacity: 0.9,
     side: THREE.DoubleSide,
     depthTest: false
   });
@@ -154,8 +116,6 @@ function init() {
   generateRings(40);
 
   // Eventos
-  document.addEventListener('keydown', onKeyDown);
-  document.addEventListener('keyup', onKeyUp);
   window.addEventListener('resize', onWindowResize);
   window.addEventListener('gamepadconnected', onGamepadConnect);
   window.addEventListener('gamepaddisconnected', onGamepadDisconnect);
@@ -163,8 +123,39 @@ function init() {
   clock = new THREE.Clock();
   startTimer();
 
-  // Iniciar render loop
-  renderer.setAnimationLoop(animate); // ← WebXR usa setAnimationLoop
+  // === RENDER LOOP CORRECTO PARA VR ===
+  renderer.setAnimationLoop(animate);
+}
+
+// === DEVICE ORIENTATION MANUAL ===
+class DeviceOrientationControls {
+  constructor(object) {
+    this.object = object;
+    this.object.rotation.reorder('YXZ');
+    this.enabled = true;
+    this.deviceOrientation = {};
+
+    const onDeviceOrientation = (event) => {
+      if (event.alpha !== null) {
+        this.deviceOrientation = {
+          alpha: THREE.MathUtils.degToRad(event.alpha),
+          beta: THREE.MathUtils.degToRad(event.beta),
+          gamma: THREE.MathUtils.degToRad(event.gamma)
+        };
+      }
+    };
+
+    window.addEventListener('deviceorientation', onDeviceOrientation);
+    this.connect = () => {};
+    this.update = () => {
+      if (!this.deviceOrientation.alpha) return;
+      const { alpha, beta, gamma } = this.deviceOrientation;
+      this.object.quaternion.setFromEuler(new THREE.Euler(beta, alpha, -gamma, 'YXZ'));
+    };
+    this.dispose = () => {
+      window.removeEventListener('deviceorientation', onDeviceOrientation);
+    };
+  }
 }
 
 function onGamepadConnect(e) {
@@ -206,11 +197,6 @@ function generateRings(count) {
   }
 }
 
-// Controles teclado
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-function onKeyDown(e) { if (!gameOver) { if (e.code === 'KeyW') moveForward = true; if (e.code === 'KeyS') moveBackward = true; if (e.code === 'KeyA') moveLeft = true; if (e.code === 'KeyD') moveRight = true; } }
-function onKeyUp(e) { if (e.code === 'KeyW') moveForward = false; if (e.code === 'KeyS') moveBackward = false; if (e.code === 'KeyA') moveLeft = false; if (e.code === 'KeyD') moveRight = false; }
-
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -222,9 +208,28 @@ function onWindowResize() {
   }
 }
 
+// === CONTROLES TECLADO (solo fuera de VR) ===
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+document.addEventListener('keydown', (e) => {
+  if (gameOver || renderer.xr.isPresenting) return;
+  if (e.code === 'KeyW') moveForward = true;
+  if (e.code === 'KeyS') moveBackward = true;
+  if (e.code === 'KeyA') moveLeft = true;
+  if (e.code === 'KeyD') moveRight = true;
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyW') moveForward = false;
+  if (e.code === 'KeyS') moveBackward = false;
+  if (e.code === 'KeyA') moveLeft = false;
+  if (e.code === 'KeyD') moveRight = false;
+});
+
 function updateFlightControls(delta) {
-  if (gamepadConnected && currentGamepad) {
-    const gp = currentGamepad;
+  const gp = navigator.getGamepads()[0];
+  if (gp) {
+    currentGamepad = gp;
+    gamepadConnected = true;
+
     const stickLX = gp.axes[0] || 0;
     const stickLY = gp.axes[1] || 0;
 
@@ -234,14 +239,15 @@ function updateFlightControls(delta) {
     const accel = gp.buttons[0].pressed || gp.buttons[7].pressed;
     const brake = gp.buttons[1].pressed || gp.buttons[6].pressed;
 
-    if (accel) acceleration = Math.min(acceleration + 30 * delta, maxSpeed);
-    else if (brake) acceleration = Math.max(acceleration - 35 * delta, 0);
+    if (accel) acceleration = Math.min(acceleration + 35 * delta, maxSpeed);
+    else if (brake) acceleration = Math.max(acceleration - 40 * delta, 0);
     else acceleration *= 0.94;
 
     debugElement.innerHTML = `Speed: ${acceleration.toFixed(0)} | Roll: ${rollAngle.toFixed(1)} | Pitch: ${pitchAngle.toFixed(1)}`;
   } else {
-    if (moveForward) acceleration = Math.min(acceleration + 30 * delta, maxSpeed);
-    if (moveBackward) acceleration = Math.max(acceleration - 35 * delta, 0);
+    // Teclado fallback
+    if (moveForward) acceleration = Math.min(acceleration + 35 * delta, maxSpeed);
+    if (moveBackward) acceleration = Math.max(acceleration - 40 * delta, 0);
     else acceleration *= 0.94;
 
     if (moveLeft) rollAngle = Math.max(rollAngle - 2.5 * delta, -1.5);
@@ -266,12 +272,13 @@ function updatePlayer(delta) {
   player.position.add(velocity);
   player.position.y = THREE.MathUtils.clamp(player.position.y, -20, 40);
 
-  // Cámara sigue al jugador
-  camera.position.lerp(player.position.clone().add(new THREE.Vector3(0, 1.8, 5)), 0.1);
+  // Cámara sigue
+  const targetCamPos = player.position.clone().add(new THREE.Vector3(0, 1.8, 5));
+  camera.position.lerp(targetCamPos, 0.1);
 
-  // Orientación del dispositivo (solo si no estamos en VR)
-  if (vrControls && !renderer.xr.isPresenting) {
-    vrControls.update();
+  // Orientación móvil (solo fuera de VR)
+  if (deviceOrientation && !renderer.xr.isPresenting) {
+    deviceOrientation.update();
   }
 }
 
@@ -305,6 +312,9 @@ function endGame() {
   });
   finalScore.textContent = score;
   endScreen.style.display = 'flex';
+
+  // Botón reiniciar
+  document.getElementById('restartBtn').onclick = () => location.reload();
 }
 
 function animate() {
@@ -326,10 +336,6 @@ function animate() {
         r.position.y = Math.random() * 20;
       }
     });
-
-    // Gamepad polling
-    const gamepads = navigator.getGamepads();
-    if (gamepads[0]) { currentGamepad = gamepads[0]; gamepadConnected = true; }
   }
 
   renderer.render(scene, camera);
