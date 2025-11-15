@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Simulador de Vuelo VR</title>
-  <link rel="stylesheet" href="./style.css" />
+  <title>Vuelo VR</title>
+  <link rel="stylesheet" href="style.css" />
 
+  <!-- Three.js + Addons -->
   <script type="importmap">
     {
       "imports": {
@@ -16,26 +17,23 @@
   </script>
 </head>
 <body>
-  <!-- Contenedor 3D -->
+  <!-- 3D -->
   <div id="container"></div>
 
   <!-- HUD -->
-  <div id="scoreHUD">SCORE: 0</div>
-  <div id="timerHUD">TIME: 60s</div>
-  <div id="debugHUD" style="position: absolute; bottom: 20px; left: 20px; color: #00ff00; font-size: 14px; z-index: 10;"></div>
+  <div id="score">SCORE: 0</div>
+  <div id="timer">TIME: 60s</div>
 
   <!-- VR Button -->
-  <div id="vrButtonContainer" style="position: absolute; bottom: 20px; right: 20px; z-index: 100;"></div>
+  <div id="vrButton"></div>
 
-  <!-- Pantalla final -->
-  <div id="endScreen" style="display: none;">
-    <div class="end-content">
-      <h1>¡Tiempo terminado!</h1>
-      <p>Puntaje final: <strong id="finalScore">0</strong></p>
-      <button id="restartBtn">Reiniciar</button>
-    </div>
+  <!-- Game Over -->
+  <div id="gameOver" style="display: none;">
+    <h1>¡Tiempo!</h1>
+    <p>Puntaje: <strong id="finalScore">0</strong></p>
+    <p class="restart">Pulsa <kbd>A</kbd> para reiniciar</p>
   </div>
 
-  <script type="module" src="./js/main.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
