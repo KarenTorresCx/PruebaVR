@@ -13,16 +13,16 @@ let gameStarted = false;
 let gamepadConnected = false;
 let currentGamepad = null;
 
-// Vuelo
+// Física
 let velocity = new THREE.Vector3();
 let acceleration = 0;
-let maxSpeed = 50;
-let rollAngle = 0;
-let pitchAngle = 0;
-const rollSensitivity = 2.5;
-const pitchSensitivity = 1.5;
+let maxSpeed = 40;
+let lateralSpeed = 0;
+let maxLateral = 25;
+let playerXLimit = 80;
+const DEADZONE = 0.2;
 
-// DeviceOrientation (solo fuera de VR)
+// DeviceOrientation (fuera de VR)
 let deviceOrientation = null;
 
 export function startGame() {
@@ -32,12 +32,13 @@ export function startGame() {
 }
 window.startGame = startGame;
 
-// === INICIO AUTOMÁTICO ===
+// === ARRANQUE AUTOMÁTICO ===
 window.addEventListener('load', () => {
-  setTimeout(startGame, 100); // Pequeño delay para que cargue todo
+  setTimeout(startGame, 100);
 });
 
 function init() {
+  // HUD
   scoreElement = document.getElementById('scoreHUD');
   timerElement = document.getElementById('timerHUD');
   endScreen = document.getElementById('endScreen');
@@ -68,7 +69,7 @@ function init() {
   const vrButton = VRButton.createButton(renderer);
   document.getElementById('vrButtonContainer').appendChild(vrButton);
 
-  // === DEVICE ORIENTATION (solo si NO hay VR) ===
+  // === ORIENTACIÓN MÓVIL (solo si no hay VR) ===
   if (!navigator.xr) {
     deviceOrientation = new DeviceOrientationControls(camera);
     deviceOrientation.connect();
@@ -86,7 +87,7 @@ function init() {
   player.position.set(0, 0, 0);
   scene.add(player);
 
-  // Cabina HUD (visible en VR y no VR)
+  // Cabina HUD
   const cabinaTexture = textureLoader.load('textures/avionhud.png');
   const cabinaMaterial = new THREE.MeshBasicMaterial({
     map: cabinaTexture,
@@ -120,10 +121,17 @@ function init() {
   window.addEventListener('gamepadconnected', onGamepadConnect);
   window.addEventListener('gamepaddisconnected', onGamepadDisconnect);
 
+  // === REINICIAR CON TECLA A ===
+  document.addEventListener('keydown', (e) => {
+    if (gameOver && e.code === 'KeyA') {
+      location.reload();
+    }
+  });
+
   clock = new THREE.Clock();
   startTimer();
 
-  // === RENDER LOOP CORRECTO PARA VR ===
+  // Render loop (WebXR)
   renderer.setAnimationLoop(animate);
 }
 
@@ -132,7 +140,6 @@ class DeviceOrientationControls {
   constructor(object) {
     this.object = object;
     this.object.rotation.reorder('YXZ');
-    this.enabled = true;
     this.deviceOrientation = {};
 
     const onDeviceOrientation = (event) => {
@@ -208,75 +215,61 @@ function onWindowResize() {
   }
 }
 
-// === CONTROLES TECLADO (solo fuera de VR) ===
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-document.addEventListener('keydown', (e) => {
-  if (gameOver || renderer.xr.isPresenting) return;
-  if (e.code === 'KeyW') moveForward = true;
-  if (e.code === 'KeyS') moveBackward = true;
-  if (e.code === 'KeyA') moveLeft = true;
-  if (e.code === 'KeyD') moveRight = true;
-});
-document.addEventListener('keyup', (e) => {
-  if (e.code === 'KeyW') moveForward = false;
-  if (e.code === 'KeyS') moveBackward = false;
-  if (e.code === 'KeyA') moveLeft = false;
-  if (e.code === 'KeyD') moveRight = false;
-});
-
+// === CONTROLES DEL JOYSTICK ===
 function updateFlightControls(delta) {
   const gp = navigator.getGamepads()[0];
-  if (gp) {
-    currentGamepad = gp;
-    gamepadConnected = true;
+  if (!gp) return;
 
-    const stickLX = gp.axes[0] || 0;
-    const stickLY = gp.axes[1] || 0;
+  const stickX = gp.axes[0] || 0;
+  const stickY = gp.axes[1] || 0;
 
-    rollAngle = THREE.MathUtils.clamp(stickLX * rollSensitivity, -1.5, 1.5);
-    pitchAngle = -THREE.MathUtils.clamp(stickLY * pitchSensitivity, -1.2, 1.2);
-
-    const accel = gp.buttons[0].pressed || gp.buttons[7].pressed;
-    const brake = gp.buttons[1].pressed || gp.buttons[6].pressed;
-
-    if (accel) acceleration = Math.min(acceleration + 35 * delta, maxSpeed);
-    else if (brake) acceleration = Math.max(acceleration - 40 * delta, 0);
-    else acceleration *= 0.94;
-
-    debugElement.innerHTML = `Speed: ${acceleration.toFixed(0)} | Roll: ${rollAngle.toFixed(1)} | Pitch: ${pitchAngle.toFixed(1)}`;
+  // ACELERACIÓN / FRENO (Y)
+  if (stickY < -DEADZONE) {
+    acceleration = THREE.MathUtils.lerp(acceleration, maxSpeed, 0.1);
+  } else if (stickY > DEADZONE) {
+    acceleration = THREE.MathUtils.lerp(acceleration, 0, 0.15);
   } else {
-    // Teclado fallback
-    if (moveForward) acceleration = Math.min(acceleration + 35 * delta, maxSpeed);
-    if (moveBackward) acceleration = Math.max(acceleration - 40 * delta, 0);
-    else acceleration *= 0.94;
-
-    if (moveLeft) rollAngle = Math.max(rollAngle - 2.5 * delta, -1.5);
-    if (moveRight) rollAngle = Math.min(rollAngle + 2.5 * delta, 1.5);
-    else rollAngle *= 0.88;
-
-    pitchAngle *= 0.9;
+    acceleration *= 0.94;
   }
+
+  // MOVIMIENTO LATERAL (X)
+  if (Math.abs(stickX) > DEADZONE) {
+    lateralSpeed = THREE.MathUtils.lerp(lateralSpeed, stickX * maxLateral, 0.12);
+  } else {
+    lateralSpeed *= 0.88;
+  }
+
+  // Debug
+  debugElement.innerHTML = `
+    Speed: ${acceleration.toFixed(0)} 
+    | Lateral: ${lateralSpeed.toFixed(1)} 
+    | X: ${player.position.x.toFixed(1)}
+  `;
 }
 
+// === ACTUALIZAR JUGADOR ===
 function updatePlayer(delta) {
   updateFlightControls(delta);
 
-  player.rotation.z = rollAngle * 0.7;
-  player.rotation.x = pitchAngle * 0.5;
+  // Avanzar en Z
+  player.position.z -= acceleration * delta;
 
-  const forwardSpeed = acceleration * delta;
-  const forward = new THREE.Vector3(0, -Math.sin(pitchAngle), -Math.cos(pitchAngle));
-  velocity.add(forward.multiplyScalar(forwardSpeed));
-  velocity.x += rollAngle * 0.3 * forwardSpeed * delta;
-  velocity.multiplyScalar(0.98);
-  player.position.add(velocity);
-  player.position.y = THREE.MathUtils.clamp(player.position.y, -20, 40);
+  // Mover lateralmente
+  player.position.x += lateralSpeed * delta;
 
-  // Cámara sigue
+  // LÍMITES DEL TÚNEL
+  player.position.x = THREE.MathUtils.clamp(player.position.x, -playerXLimit, playerXLimit);
+  player.position.y = THREE.MathUtils.clamp(player.position.y, -15, 35);
+
+  // ROTACIÓN VISUAL
+  player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, -lateralSpeed * 0.03, 0.1);
+  player.rotation.x = THREE.MathUtils.lerp(player.rotation.x, acceleration > 10 ? -0.15 : 0, 0.1);
+
+  // CÁMARA SIGUE
   const targetCamPos = player.position.clone().add(new THREE.Vector3(0, 1.8, 5));
   camera.position.lerp(targetCamPos, 0.1);
 
-  // Orientación móvil (solo fuera de VR)
+  // Orientación móvil
   if (deviceOrientation && !renderer.xr.isPresenting) {
     deviceOrientation.update();
   }
@@ -299,22 +292,33 @@ function startTimer() {
     if (gameOver) { clearInterval(interval); return; }
     gameTime--;
     timerElement.innerHTML = `TIME: ${gameTime}s`;
-    if (gameTime <= 0) { clearInterval(interval); endGame(); }
+    if (gameTime <= 0) {
+      clearInterval(interval);
+      endGame();
+    }
   }, 1000);
 }
 
 function endGame() {
   gameOver = true;
   acceleration = 0;
+  lateralSpeed = 0;
   velocity.set(0, 0, 0);
+
   ['scoreHUD', 'timerHUD', 'debugHUD'].forEach(id => {
     document.getElementById(id).style.display = 'none';
   });
+
   finalScore.textContent = score;
   endScreen.style.display = 'flex';
 
-  // Botón reiniciar
-  document.getElementById('restartBtn').onclick = () => location.reload();
+  // Mensaje de reinicio
+  const msg = document.createElement('p');
+  msg.textContent = 'Pulsa A para reiniciar';
+  msg.style.color = '#00ffff';
+  msg.style.marginTop = '20px';
+  msg.style.fontSize = '18px';
+  endScreen.querySelector('.end-content').appendChild(msg);
 }
 
 function animate() {
@@ -323,6 +327,7 @@ function animate() {
     updatePlayer(delta);
     checkRingCollisions();
 
+    // Mover aros
     rings.forEach(r => {
       r.position.z += (12 + acceleration * 0.1) * delta;
       r.rotation.z += r.userData.rotationSpeed;
@@ -330,6 +335,7 @@ function animate() {
       const color = new THREE.Color(`hsl(${r.userData.hue}, 100%, 60%)`);
       r.material.color.copy(color);
       r.material.emissive.copy(color.clone().multiplyScalar(0.4));
+
       if (r.position.z > player.position.z + 100) {
         r.position.z = player.position.z - 300 - Math.random() * 200;
         r.position.x = (Math.random() - 0.5) * 300;
