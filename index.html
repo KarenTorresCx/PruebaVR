@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Simulador de Vuelo VR</title>
+  <link rel="stylesheet" href="./style.css" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="startScreen">
+    <h1>Simulación de Vuelo VR</h1>
+    <h3>Controles VR / Joystick</h3>
+    <p><b>Joystick Izq/Derecha:</b> Dirección (Roll)</p>
+    <p><b>Joystick Arriba/Abajo:</b> Ascenso/Descenso (Pitch)</p>
+    <p><b>Botón 0 / Trigger:</b> Acelerar</p>
+    <p><b>Botón 1:</b> Frenar</p>
+    <p><b>Teclado también funciona</b></p>
+    <button id="startBtn">Iniciar Vuelo VR</button>
+  </div>
+
+  <div id="container"></div>
+
+  <div id="scoreHUD">SCORE: 0</div>
+  <div id="timerHUD">TIME: 60s</div>
+  <div id="debugHUD" style="position: absolute; bottom: 20px; left: 20px; color: #00ff00; font-size: 14px; display: none;"></div>
+
+  <div id="endScreen">
+    <div class="end-content">
+      <h1>¡Tiempo terminado!</h1>
+      <p>Puntaje final: <strong id="finalScore">0</strong></p>
+      <button id="restartBtn">Reiniciar</button>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+
+  <script>
+    document.getElementById('startBtn').addEventListener('click', () => {
+      document.getElementById('startScreen').style.display = 'none';
+      document.body.requestFullscreen();
+      window.startGame && window.startGame();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      location.reload();
+    });
+  </script>
+</body>
+</html>
