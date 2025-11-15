@@ -2,38 +2,173 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Vuelo VR</title>
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Three.js + Addons -->
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
-      }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VR con Joystick - Mover Cubo</title>
+  <!-- A-Frame + WebXR -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <style>
+    body { margin: 0; font-family: Arial; }
+    #vr-button {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      font-size: 18px;
+      background: #2E7D32;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 1000;
     }
-  </script>
+    #vr-button:hover { background: #1B5E20; }
+  </style>
 </head>
 <body>
-  <!-- 3D -->
-  <div id="container"></div>
 
-  <!-- HUD -->
-  <div id="score">SCORE: 0</div>
-  <div id="timer">TIME: 60s</div>
+  <!-- Botón para entrar en VR -->
+  <button id="vr-button">Entrar en VR</button>
 
-  <!-- VR Button -->
-  <div id="vrButton"></div>
+  <!-- Escena A-Frame -->
+  <a-scene 
+    background="color: #000033"
+    xr-mode-ui='enabled: true'
+    renderer="colorManagement: true"
+    embedded
+    vr-mode-ui="enabled: true"
+  >
 
-  <!-- Game Over -->
-  <div id="gameOver" style="display: none;">
-    <h1>¡Tiempo!</h1>
-    <p>Puntaje: <strong id="finalScore">0</strong></p>
-    <p class="restart">Pulsa <kbd>A</kbd> para reiniciar</p>
-  </div>
+    <!-- Cámara con manos/controladores -->
+    <a-entity id="rig" movement-controls="controls: gamepad">
+      <a-entity 
+        camera 
+        position="0 1.6 0" 
+        wasd-controls-enabled="false"
+        look-controls="pointerLockEnabled: true"
+      ></a-entity>
 
-  <script type="module" src="js/main.js"></script>
+      <!-- Mano derecha (con joystick para mover cubo) -->
+      <a-entity 
+        id="right-hand"
+        laser-controls="hand: right"
+        raycaster="objects: .movable"
+        oculus-touch-controls="hand: right"
+        vive-controls="hand: right"
+        windows-motion-controls="hand: right"
+      ></a-entity>
+    </a-entity>
+
+    <!-- Cubo que se puede mover -->
+    <a-box 
+      id="cubo" 
+      class="movable"
+      position="0 1 -2" 
+      depth="0.5" 
+      height="0.5" 
+      width="0.5" 
+      color="#FF5722"
+      shadow
+    ></a-box>
+
+    <!-- Suelo -->
+    <a-plane 
+      position="0 0 -2" 
+      rotation="-90 0 0" 
+      width="10" 
+      height="10" 
+      color="#43A047" 
+      shadow
+    ></a-plane>
+
+    <!-- Luz -->
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" position="5 10 5" intensity="0.8"></a-light>
+
+  </a-scene>
+
+  <script>
+    // Referencias
+    const scene = document.querySelector('a-scene');
+    const vrButton = document.getElementById('vr-button');
+    const cubo = document.getElementById('cubo');
+    const rightHand = document.getElementById('right-hand');
+    const rig = document.getElementById('rig');
+
+    let isMoving = false;
+    let selectedObject = null;
+    let joystickPressed = false;
+    let joystickAxis = [0, 0];
+
+    // Entrar en VR con el botón
+    vrButton.addEventListener('click', () => {
+      if (scene.hasLoaded) {
+        scene.enterVR();
+      } else {
+        scene.addEventListener('loaded', () => {
+          scene.enterVR();
+        });
+      }
+      vrButton.style.display = 'none';
+    });
+
+    // Detectar cuando se agarra el cubo
+    rightHand.addEventListener('gripdown', (evt) => {
+      const intersection = evt.detail.intersection;
+      if (intersection && intersection.object.el === cubo) {
+        isMoving = true;
+        selectedObject = cubo;
+        cubo.setAttribute('material', 'color', '#FF9800');
+      }
+    });
+
+    rightHand.addEventListener('gripup', () => {
+        isMoving = false;
+        selectedObject = null;
+        cubo.setAttribute('material', 'color', '#FF5722');
+    });
+
+    // Detectar movimiento del joystick (solo en VR)
+    rightHand.addEventListener('axismove', (evt) => {
+      if (!isMoving) return;
+      
+      const axis = evt.detail.axis;
+      joystickAxis = [axis[0], axis[1]]; // X: izquierda/derecha, Y: arriba/abajo
+      joystickPressed = Math.abs(axis[0]) > 0.2 || Math.abs(axis[1]) > 0.2;
+    });
+
+    // Mover el cubo con el joystick mientras está agarrado
+    AFRAME.registerComponent('joystick-movement', {
+      tick: function () {
+        if (!isMoving || !selectedObject || !joystickPressed) return;
+
+        const deltaTime = this.el.sceneEl.time - (this.lastTime || 0);
+        this.lastTime = this.el.sceneEl.time;
+
+        const speed = 2.0; // Velocidad de movimiento
+        const moveX = joystickAxis[0] * speed * deltaTime / 1000;
+        const moveZ = -joystickAxis[1] * speed * deltaTime / 1000; // Y invertido
+
+        const pos = selectedObject.getAttribute('position');
+        selectedObject.setAttribute('position', {
+          x: pos.x + moveX,
+          y: pos.y,
+          z: pos.z + moveZ
+        });
+      }
+    });
+
+    // Añadir el componente al cubo
+    cubo.setAttribute('joystick-movement', '');
+
+    // Opcional: salir de VR al presionar ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && scene.is('vr-mode')) {
+        scene.exitVR();
+        vrButton.style.display = 'block';
+      }
+    });
+  </script>
+
 </body>
 </html>
