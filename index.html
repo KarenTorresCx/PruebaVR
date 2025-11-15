@@ -1,92 +1,32 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Cubo con Control VR Box</title>
-    <style>
-        body { margin: 0; overflow: hidden; }
-    </style>
+  <meta charset="utf-8" />
+  <title>Cubo VR Box - Paso 1</title>
+  <style>body{margin:0;overflow:hidden}</style>
 </head>
 <body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+  <script>
+    // Inicialización mínima: escena, cámara, renderer y cubo
+    let scene = new THREE.Scene();
+    let camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    let renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+    const geometry = new THREE.BoxGeometry(1,1,1);
+    const material = new THREE.MeshNormalMaterial();
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
 
-<script>
-    let scene, camera, renderer, cube;
-    let gamepadIndex = null;
-    let moveEnabled = false; // Se activa al presionar el botón C
+    camera.position.z = 5;
 
-    // ───────────────────────────────
-    // INICIALIZACIÓN
-    // ───────────────────────────────
-    function init() {
-        scene = new THREE.Scene();
-
-        camera = new THREE.PerspectiveCamera(
-            75, 
-            window.innerWidth / window.innerHeight, 
-            0.1, 
-            1000
-        );
-
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Crear un cubo
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshNormalMaterial();
-        cube = new THREE.Mesh(geometry, material);
-        scene.add(cube);
-
-        camera.position.z = 5;
-
-        animate();
+    function animate(){
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
     }
-
-    // ───────────────────────────────
-    // DETECTAR GAMEPAD
-    // ───────────────────────────────
-    window.addEventListener("gamepadconnected", (e) => {
-        gamepadIndex = e.gamepad.index;
-        console.log("✔ Control VR BOX conectado:", e.gamepad);
-    });
-
-    // ───────────────────────────────
-    // ACTUALIZAR INPUT DEL CONTROL
-    // ───────────────────────────────
-    function updateGamepad() {
-        if (gamepadIndex === null) return;
-
-        const gp = navigator.getGamepads()[gamepadIndex];
-        if (!gp) return;
-
-        // Botón C del VR BOX (normalmente button 2 o 3)
-        moveEnabled = gp.buttons[2]?.pressed || gp.buttons[3]?.pressed;
-
-        if (moveEnabled) {
-            const axisX = gp.axes[0]; // Joystick eje horizontal
-            const axisY = gp.axes[1]; // Joystick eje vertical
-
-            const speed = 0.05;
-
-            // Mover el cubo
-            cube.position.x += axisX * speed;
-            cube.position.y -= axisY * speed;
-        }
-    }
-
-    // ───────────────────────────────
-    // LOOP DE ANIMACIÓN
-    // ───────────────────────────────
-    function animate() {
-        requestAnimationFrame(animate);
-        updateGamepad();
-        renderer.render(scene, camera);
-    }
-
-    init();
-</script>
-
+    animate();
+  </script>
 </body>
 </html>
