@@ -41,9 +41,10 @@ controls.update();
 const geometry = new THREE.BoxGeometry( 1, 1, 1 );
 const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 const cube = new THREE.Mesh( geometry, material );
+cube.position.set(0, 5, -5);
 scene.add( cube );
 
-camera.position.z = 15;
+camera.position.z = 5;
 
 // //Modelos GLB
 // function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
@@ -107,7 +108,7 @@ renderer.xr.addEventListener('sessionstart', () => {
   const controller = renderer.xr.getController(0);
   
   // ¡¡ESTAS SON LAS LÍNEAS CLAVE!!
-  controller.position.set(0, 0, 10);   // altura de ojos
+  controller.position.set(0, 10, 0);   // altura de ojos
   controller.rotation.set(THREE.MathUtils.degToRad(15), 0, 0);
 
   controller.add(laserPointer);
