@@ -1,9 +1,8 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js';
 
-// === ESCENA BÁSICA ===
+// Escena y renderer
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.z = 5;
@@ -13,144 +12,144 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.xr.enabled = true;
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
+
+// Botón VR
 document.body.appendChild(VRButton.createButton(renderer));
 
-// HDRI
+// HDRI (opcional)
 const cubeLoader = new THREE.CubeTextureLoader();
 cubeLoader.setPath('cubemap/');
-const envMap = cubeLoader.load(['px.png','nx.png','py.png','ny.png','pz.png','nz.png']);
-scene.background = envMap;
+cubeLoader.load(
+  ['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'],
+  (tex) => scene.background = tex,
+  undefined,
+  () => console.warn("cubemap/ no encontrado → fondo negro")
+);
 
-// === CARGAR AVIÓN ===
-let avionModel = null;
-let isRotating = false;
-const loaderGLB = new GLTFLoader();
-
-loaderGLB.load('modelos/avion2.glb', (gltf) => {
-  avionModel = gltf.scene;
-  avionModel.position.set(0, 2, -3);
-  avionModel.scale.set(0.003, 0.003, 0.003);
-  avionModel.rotation.y = Math.PI / 2;
-  avionModel.userData.isAvion = true;
-
-  avionModel.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
-
-  scene.add(avionModel);
-});
-
-// === CONTROLADOR VR + LÁSER ===
+// Variables globales
 let vrController = null;
 let laserPointer = null;
+let selectedModel = null;
+let isRotating = false;
+let infoSphere = null;
+let gameSphere = null;
 
-const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-20)]);
-const laserMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3, transparent: true, opacity: 0.8 });
-laserPointer = new THREE.Line(laserGeo, laserMat);
+// Láser rojo
+const laserGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-20)]);
+const laserMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3, transparent: true, opacity: 0.8 });
+laserPointer = new THREE.Line(laserGeometry, laserMaterial);
 laserPointer.visible = false;
 
-const DEADZONE = 0.25;
-const SENSITIVITY = 3.0;
+// Cargar modelo avión verde
+const loaderGLB = new GLTFLoader();
+loaderGLB.load('modelos/avion2.glb', (gltf) => {
+  const model = gltf.scene;
+  model.userData.isGLTFModel = true;
+  model.position.set(0, 2, -3);
+  model.scale.set(0.003, 0.003, 0.003);
+  model.rotation.y = Math.PI / 2;
+  model.traverse(n => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
+  scene.add(model);
 
+  // === ESFERA DE CURIOSIDADES (izquierda del avión) ===
+  const infoGeo = new THREE.SphereGeometry(0.2, 32, 32);
+  const infoMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+  infoSphere = new THREE.Mesh(infoGeo, infoMat);
+  infoSphere.position.set(-2, 2.2, -3);
+  infoSphere.userData.type = "info";
+  scene.add(infoSphere);
+
+  // DOM overlay (solo visible en VR)
+  const infoBtn = document.createElement('div');
+  infoBtn.className = 'info-button';
+  document.body.appendChild(infoBtn);
+
+  // === ESFERA DE MINIJUEGO (más a la izquierda) ===
+  const gameGeo = new THREE.SphereGeometry(0.2, 32, 32);
+  const gameMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+  gameSphere = new THREE.Mesh(gameGeo, gameMat);
+  gameSphere.position.set(2, 2.2, -3);
+  gameSphere.userData.type = "game";
+  scene.add(gameSphere);
+
+  const gameBtn = document.createElement('div');
+  gameBtn.className = 'game-button';
+  document.body.appendChild(gameBtn);
+});
+
+// Controlador VRBox
 renderer.xr.addEventListener('sessionstart', () => {
   const controller = renderer.xr.getController(0);
   controller.position.set(0, 1.6, 0.3);
+  controller.rotation.x = THREE.MathUtils.degToRad(-15);
   controller.add(laserPointer);
   scene.add(controller);
   vrController = controller;
 
-  controller.addEventListener('select', onSelect);
+  controller.addEventListener('select', performRaycastClick);
 });
 
-function handleController(controller) {
-  if (!controller?.gamepad) return;
-  const axes = controller.gamepad.axes;
+// Zona de muerte + joystick
+const DEADZONE = 0.25;
+const SENSITIVITY = 3.0;
+function handleController(c) {
+  if (!c?.gamepad) return;
+  const axes = c.gamepad.axes;
   if (axes.length < 2) return;
-
-  let x = axes[0];
-  let y = axes[1];
+  let x = axes[0], y = axes[1];
   if (Math.abs(x) < DEADZONE) x = 0;
   if (Math.abs(y) < DEADZONE) y = 0;
-
-  controller.rotation.y -= x * SENSITIVITY * 0.05;
-  controller.rotation.x -= y * SENSITIVITY * 0.05;
-  controller.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, controller.rotation.x));
+  c.rotation.y -= x * SENSITIVITY * 0.05;
+  c.rotation.x -= y * SENSITIVITY * 0.05;
+  c.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, c.rotation.x));
 }
 
-// === CLIC CON LÁSER ===
-function onSelect() {
+// Raycast + acciones
+function performRaycastClick() {
   if (!vrController) return;
 
-  const tempMatrix = new THREE.Matrix4();
-  tempMatrix.identity().extractRotation(vrController.matrixWorld);
-
   const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
   raycaster.ray.origin.setFromMatrixPosition(vrController.matrixWorld);
-  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+  const dir = new THREE.Vector3(0,0,-1).applyQuaternion(vrController.quaternion);
+  raycaster.ray.direction.copy(dir);
 
-  const intersects = raycaster.intersectObjects(scene.children, true);
+  const hits = raycaster.intersectObjects(scene.children, true);
 
-  if (intersects.length > 0) {
-    let obj = intersects[0].object;
-    while (obj && !obj.userData.isAvion && obj.parent) obj = obj.parent;
+  if (hits.length > 0) {
+    let obj = hits[0].object;
+
+    // Detectar modelo GLTF
+    while (obj && !obj.userData.isGLTFModel && !obj.userData.type) obj = obj.parent;
+    if (!obj) return;
 
     // 1. Rotar avión
-    if (obj && obj.userData.isAvion) {
-      isRotating = !isRotating;
-      console.log(isRotating ? "Rotando avión" : "Avión detenido");
+    if (obj.userData.isGLTFModel) {
+      if (selectedModel === obj) isRotating = !isRotating;
+      else { selectedModel = obj; isRotating = true; }
       return;
     }
 
     // 2. Botón de curiosidades
-    if (intersects[0].object.name === 'infoButton') {
-      alert("¡Aquí irán las curiosidades del avión de la Segunda Guerra Mundial!");
+    if (obj.userData.type === "info") {
+      alert("¡Curiosidades del WW2!\n\nEl Messerschmitt Bf 109 fue el caza más producido de la historia con más de 34.000 unidades. ¡Podía alcanzar 700 km/h!");
       return;
     }
 
-    // 3. Botón de juego
-    if (intersects[0].object.name === 'gameButton') {
-      alert("¡Iniciando minijuego de vuelo!");
-      // Aquí en el futuro irá el minijuego
+    // 3. Botón de minijuego
+    if (obj.userData.type === "game") {
+      if (confirm("¿Quieres jugar al minijuego de vuelo?")) {
+        location.href = "minigame.html";   // ← crea este archivo después
+      }
       return;
     }
   }
 }
 
-// === BOTONES FLOTANTES EN 3D (para VR) ===
-function createVRButton(name, position, color) {
-  const buttonGroup = new THREE.Group();
-  buttonGroup.name = name;
-
-  const geo = new THREE.SphereGeometry(0.2, 32, 32);
-  const mat = new THREE.MeshStandardMaterial({ 
-    color: color,
-    metalness: 0.8,
-    roughness: 0.2,
-    emissive: color,
-    emissiveIntensity: 0.3
-  });
-  const sphere = new THREE.Mesh(geo, mat);
-  sphere.name = name;
-  buttonGroup.add(sphere);
-
-  buttonGroup.position.copy(position);
-  scene.add(buttonGroup);
-  return buttonGroup;
-}
-
-const infoBtn = createVRButton('infoButton', new THREE.Vector3(-3, 1.8, -3), 0x0096ff);
-const gameBtn = createVRButton('gameButton', new THREE.Vector3(3, 1.8, -3), 0x00c832);
-
-// === ANIMACIÓN ===
+// Bucle principal
 function animate() {
-  if (isRotating && avionModel) {
-    avionModel.rotation.y += 0.015;
-  }
-
   if (vrController) {
     handleController(vrController);
     laserPointer.visible = true;
@@ -158,9 +157,10 @@ function animate() {
     laserPointer.visible = false;
   }
 
+  if (isRotating && selectedModel) selectedModel.rotation.y += 0.01;
+
   renderer.render(scene, camera);
 }
-
 renderer.setAnimationLoop(animate);
 
 // Responsive
