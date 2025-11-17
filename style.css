@@ -1,62 +1,60 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { 
-  margin: 0; 
-  overflow: hidden; 
-  background: #000; 
-  font-family: Arial, sans-serif;
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.vr-button {
-  position: absolute;
-  width: 180px;
-  height: 180px;
-  background: rgba(0, 150, 255, 0.85);
-  border-radius: 50%;
-  color: rgb(0, 0, 0);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  user-select: none;
-  box-shadow: 0 0 30px rgba(0, 200, 255, 0.6);
-  transition: all 0.2s;
-  z-index: 10;
-  border: 4px solid rgba(255, 255, 255, 0.4);
+body {
+    background: #0d0d0d;
+    font-family: Arial, Helvetica, sans-serif;
+    color: white;
+    overflow: hidden;
 }
 
-.vr-button:active {
-  transform: scale(0.9);
-  background: rgba(6, 77, 97, 0.95);
+button {
+    all: unset;
+    padding: 14px 26px;
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.25s ease;
+    display: inline-block;
+    user-select: none;
 }
 
-.vr-button .icon {
-  font-size: 48px;
-  margin-bottom: 8px;
+.btn-azul {
+    background: #003366; 
+    border: 2px solid #004080;
+    color: #e6f2ff;
 }
 
-.vr-button .text {
-  font-size: 20px;
-  font-weight: bold;
-  text-align: center;
-  line-height: 1.2;
+.btn-azul:hover {
+    background: #004080;
+    border-color: #0059b3;
+    transform: scale(1.05);
 }
 
-/* Botón de curiosidades (izquierda) */
-#infoButton {
-  left: 60px;
-  top: 50%;
-  transform: translateY(-50%);
+.btn-verde {
+    background: #014d2d;  
+    border: 2px solid #02663c;
+    color: #e8fff4;
 }
 
-/* Botón de juego (derecha) */
-#gameButton {
-  right: 60px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(6, 95, 28, 0.9);
+.btn-verde:hover {
+    background: #02663c;
+    border-color: #038f52;
+    transform: scale(1.05);
 }
 
-#gameButton:active {
-  background: rgba(10, 163, 58, 0.95);
+.main-menu {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
