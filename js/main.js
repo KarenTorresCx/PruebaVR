@@ -57,7 +57,7 @@ loaderGLB.load('modelos/avion2.glb', (gltf) => {
   const infoGeo = new THREE.SphereGeometry(0.2, 32, 32);
   const infoMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
   infoSphere = new THREE.Mesh(infoGeo, infoMat);
-  infoSphere.position.set(-2, 2.2, -3);
+  infoSphere.position.set(-2.5, 2.2, -3);
   infoSphere.userData.type = "info";
   scene.add(infoSphere);
 
@@ -70,7 +70,7 @@ loaderGLB.load('modelos/avion2.glb', (gltf) => {
   const gameGeo = new THREE.SphereGeometry(0.2, 32, 32);
   const gameMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
   gameSphere = new THREE.Mesh(gameGeo, gameMat);
-  gameSphere.position.set(2, 2.2, -3);
+  gameSphere.position.set(2.5, 2.2, -3);
   gameSphere.userData.type = "game";
   scene.add(gameSphere);
 
