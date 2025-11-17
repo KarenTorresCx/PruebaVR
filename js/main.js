@@ -2,190 +2,187 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js';
 
-// Escena y renderer
+// === Escena básica ===
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 5;
+camera.position.set(0, 1.6, 1);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
-
-// Botón VR
 document.body.appendChild(VRButton.createButton(renderer));
 
-// HDRI (opcional)
-const cubeLoader = new THREE.CubeTextureLoader();
-cubeLoader.setPath('cubemap/');
-cubeLoader.load(
-    ['px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png'],
-    (tex) => scene.background = tex,
-    undefined,
-    () => console.warn("cubemap/ no encontrado → fondo negro")
+// Fondo HDRI
+new THREE.CubeTextureLoader().setPath('cubemap/').load(
+  ['px.png','nx.png','py.png','ny.png','pz.png','nz.png'],
+  tex => scene.background = tex
 );
 
-// Variables globales
+// === Variables globales ===
 let vrController = null;
 let laserPointer = null;
 let selectedModel = null;
 let isRotating = false;
 let infoSphere = null;
-let infoPanel = null;
-let infoTextElement = null;
-let currentInfoIndex = 0;
 let gameSphere = null;
+let infoPanel = null;   // Panel 3D de curiosidades
 
-// Láser rojo
-const laserGeometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -20)]);
-const laserMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3, transparent: true, opacity: 0.8 });
-laserPointer = new THREE.Line(laserGeometry, laserMaterial);
+// === Láser rojo ===
+const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-30)]);
+laserPointer = new THREE.Line(laserGeo, new THREE.LineBasicMaterial({color:0xff0000, linewidth:4, transparent:true, opacity:0.8}));
 laserPointer.visible = false;
 
-// Cargar modelo avión verde
-const loaderGLB = new GLTFLoader();
-loaderGLB.load('modelos/avion2.glb', (gltf) => {
-    const model = gltf.scene;
-    model.userData.isGLTFModel = true;
-    model.position.set(0, 2, -3);
-    model.scale.set(0.003, 0.003, 0.003);
-    model.rotation.y = Math.PI / 2;
-    model.traverse(n => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
-    scene.add(model);
+// === Cargar avión ===
+const loader = new GLTFLoader();
+loader.load('modelos/avion2.glb', gltf => {
+  const avion = gltf.scene;
+  avion.userData.isGLTFModel = true;
+  avion.position.set(0, 1.6, -3);
+  avion.scale.set(0.003, 0.003, 0.003);
+  avion.rotation.y = Math.PI / 2;
+  avion.traverse(n => { if (n.isMesh) n.castShadow = n.receiveShadow = true; });
+  scene.add(avion);
 
-    //ESFERA DE CURIOSIDADES 
-    const infoGeo = new THREE.SphereGeometry(0.2, 32, 32);
-    const infoMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
-    infoSphere = new THREE.Mesh(infoGeo, infoMat);
-    infoSphere.position.set(-1, 3, 0);
-    infoSphere.userData.type = "info";
-    scene.add(infoSphere);
+  // === Esfera CURIOSIDADES (azul) ===
+  infoSphere = createInteractiveSphere(0x00aaff, -3, 1.8, -3, "info");
+  scene.add(infoSphere);
 
-    //curiosidades
-    const curiosidades = [
-        "El Messerschmitt Bf 109 fue el caza más producido de la historia: ¡más de 34.000 unidades!",
-        "Podía alcanzar los 700 km/h y subir a 12.000 metros de altura.",
-        "Fue pilotado por ases como Erich Hartmann, con 352 victorias aéreas.",
-        "Usaba un motor Daimler-Benz DB 605 de inyección directa, algo revolucionario en 1939.",
-        "¡Combatió desde el primer hasta el último día de la guerra!"
-    ];
+  // === Esfera MINIJUEGO (verde) ===
+  gameSphere = createInteractiveSphere(0x00ff88, 3, 1.8, -3, "game", 0.25);
+  scene.add(gameSphere);
 
-    // Panel DOM (solo se crea una vez)
-    infoPanel = document.getElementById('infoPanel');
-    infoTextElement = document.getElementById('infoText');
-
-    document.getElementById('closeBtn').onclick = () => {
-        infoPanel.style.display = 'none';
-    };
-
-    // === ESFERA DE MINIJUEGO (más a la izquierda) ===
-    const gameGeo = new THREE.SphereGeometry(0.2, 32, 32);
-    const gameMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
-    gameSphere = new THREE.Mesh(gameGeo, gameMat);
-    gameSphere.position.set(1, 3, -3);
-    gameSphere.userData.type = "game";
-    scene.add(gameSphere);
-
-    const gameBtn = document.createElement('div');
-    gameBtn.className = 'game-button';
-    document.body.appendChild(gameBtn);
+  // Panel de curiosidades (inicialmente oculto)
+  infoPanel = createInfoPanel();
+  infoPanel.visible = false;
+  scene.add(infoPanel);
 });
 
-// Controlador VRBox
+// Función para crear esferas interactivas
+function createInteractiveSphere(color, x, y, z, type, scale = 0.4) {
+  const geo = new THREE.SphereGeometry(scale, 32, 32);
+  const mat = new THREE.MeshBasicMaterial({ color });
+  const sphere = new THREE.Mesh(geo, mat);
+  sphere.position.set(x, y, z);
+  sphere.userData.type = type;
+  return sphere;
+}
+
+// === Panel de curiosidades en 3D ===
+function createInfoPanel() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '60px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('CURIOSIDADES DEL BF 109', 512, 100);
+  ctx.font = '40px Arial';
+  ctx.fillText('• Más de 34.000 unidades producidas', 512, 200);
+  ctx.fillText('• Velocidad máxima: 700 km/h', 512, 280);
+  ctx.fillText('• Armamento: 2 ametralladoras + 1 cañón', 512, 360);
+  ctx.fillText('¡Apunta y dispara el gatillo para cerrar!', 512, 460);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(4, 2), material);
+  panel.position.set(-3, 2, -4);
+  return panel;
+}
+
+// === Controlador VRBox ===
 renderer.xr.addEventListener('sessionstart', () => {
-    const controller = renderer.xr.getController(0);
-    controller.position.set(0, 1.6, 0.3);
-    controller.rotation.x = THREE.MathUtils.degToRad(-15);
-    controller.add(laserPointer);
-    scene.add(controller);
-    vrController = controller;
-
-    controller.addEventListener('select', performRaycastClick);
+  const controller = renderer.xr.getController(0);
+  controller.position.set(0, 1.6, 0.5);
+  controller.rotation.x = THREE.MathUtils.degToRad(-20);
+  controller.add(laserPointer);
+  scene.add(controller);
+  vrController = controller;
+  controller.addEventListener('select', onSelect);
 });
 
-// Zona de muerte + joystick
+// Zona de muerte
 const DEADZONE = 0.25;
-const SENSITIVITY = 3.0;
-function handleController(c) {
-    if (!c?.gamepad) return;
-    const axes = c.gamepad.axes;
-    if (axes.length < 2) return;
-    let x = axes[0], y = axes[1];
-    if (Math.abs(x) < DEADZONE) x = 0;
-    if (Math.abs(y) < DEADZONE) y = 0;
-    c.rotation.y -= x * SENSITIVITY * 0.05;
-    c.rotation.x -= y * SENSITIVITY * 0.05;
-    c.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, c.rotation.x));
+function handleController() {
+  if (!vrController?.gamepad) return;
+  const a = vrController.gamepad.axes;
+  let x = a[0] || 0, y = a[1] || 0;
+  if (Math.abs(x) < DEADZONE) x = 0;
+  if (Math.abs(y) < DEADZONE) y = 0;
+  vrController.rotation.y -= x * 0.08;
+  vrController.rotation.x -= y * 0.08;
+  vrController.rotation.x = THREE.MathUtils.clamp(vrController.rotation.x, -1.4, 0.8);
 }
 
-// Raycast + acciones
-function performRaycastClick() {
-    if (!vrController) return;
+// === CLIC PRINCIPAL ===
+function onSelect() {
+  if (!vrController) return;
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    raycaster.ray.origin.setFromMatrixPosition(vrController.matrixWorld);
-    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(vrController.quaternion);
-    raycaster.ray.direction.copy(dir);
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+  const origin = new THREE.Vector3();
+  const direction = new THREE.Vector3(0,0,-1);
+  direction.applyQuaternion(vrController.quaternion);
+  raycaster.ray.set(vrController.getWorldPosition(origin), direction);
 
-    const hits = raycaster.intersectObjects(scene.children, true);
-
-    if (hits.length > 0) {
-        let obj = hits[0].object;
-
-        // Detectar modelo GLTF
-        while (obj && !obj.userData.isGLTFModel && !obj.userData.type) obj = obj.parent;
-        if (!obj) return;
-
-        // 1. Rotar avión
-        if (obj.userData.isGLTFModel) {
-            if (selectedModel === obj) isRotating = !isRotating;
-            else { selectedModel = obj; isRotating = true; }
-            return;
-        }
-
-        // 2. Botón de curiosidades
-        if (obj.userData.type === "info") {
-            if (obj.userData.type === "info") {
-                // Mostrar panel dentro del VR
-                currentInfoIndex = (currentInfoIndex + 1) % curiosidades.length;
-                infoTextElement.textContent = curiosidades[currentInfoIndex];
-                infoPanel.style.display = 'block';
-                return;
-            }
-        }
-
-        // 3. Botón de minijuego
-        if (obj.userData.type === "game") {
-            if (confirm("¿Quieres jugar al minijuego de vuelo?")) {
-                location.href = "minigame.html";   // ← crea este archivo después
-            }
-            return;
-        }
+  const hits = raycaster.intersectObjects(scene.children, true);
+  if (hits.length === 0) {
+    // Si no toca nada y el panel está visible → cerrar panel
+    if (infoPanel && infoPanel.visible) {
+      infoPanel.visible = false;
     }
+    return;
+  }
+
+  let obj = hits[0].object;
+  while (obj && !obj.userData.isGLTFModel && !obj.userData.type) obj = obj.parent;
+  if (!obj) return;
+
+  // 1. Avión → rotar
+  if (obj.userData.isGLTFModel) {
+    if (selectedModel === obj) isRotating = !isRotating;
+    else { selectedModel = obj; isRotating = true; }
+    if (infoPanel) infoPanel.visible = false;
+  }
+
+  // 2. Esfera INFO
+  else if (obj.userData.type === "info") {
+    infoPanel.visible = true;
+  }
+
+  // 3. Esfera JUEGO
+  else if (obj.userData.type === "game") {
+    if (confirm("¿Iniciar minijuego de vuelo?")) {
+      location.href = "minigame.html";
+    }
+  }
 }
 
-// Bucle principal
+// === Bucle de animación ===
 function animate() {
-    if (vrController) {
-        handleController(vrController);
-        laserPointer.visible = true;
-    } else {
-        laserPointer.visible = false;
-    }
+  if (vrController) {
+    handleController();
+    laserPointer.visible = true;
+  } else {
+    laserPointer.visible = false;
+  }
 
-    if (isRotating && selectedModel) selectedModel.rotation.y += 0.01;
+  if (isRotating && selectedModel) {
+    selectedModel.rotation.y += 0.01;
+  }
 
-    renderer.render(scene, camera);
+  renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(animate);
 
 // Responsive
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 });
