@@ -54,11 +54,11 @@ loader.load('modelos/avion2.glb', gltf => {
   scene.add(avion);
 
   // === Botón CURIOSIDADES ===
-  infoSphere = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1, 7, -3, "info");
+  infoSphere = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1, 4, -3, "info");
   scene.add(infoSphere);
 
   // === Botón MINIJUEGO ===
-  gameSphere = createInteractiveButton("MINIJUEGO", 0x00cc66, 1, 7, -3, "game");
+  gameSphere = createInteractiveButton("MINIJUEGO", 0x00cc66, 1, 4, -3, "game");
   scene.add(gameSphere);
 
   // Panel de curiosidades (inicialmente oculto)
