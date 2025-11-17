@@ -19,98 +19,176 @@ let score = 0;
 let scoreText;
 let rings = [];
 let playing = false;
+let timeLeft = 30;
+let timeText;
+let cockpitHUD;
 
 init();
+
 function init() {
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
   camera.position.set(0, 1.6, 0);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
 
   document.body.appendChild(VRButton.createButton(renderer));
+
   renderer.xr.addEventListener("sessionstart", startGame);
 
   createScoreText();
+  createTimerText();
+  createCockpitHUD();
 
   animate();
 }
 
-// ⭐ Texto dentro del 3D (puntaje)
-function createScoreText() {
-  const spriteCanvas = document.createElement("canvas");
-  spriteCanvas.width = 512;
-  spriteCanvas.height = 256;
-  const ctx = spriteCanvas.getContext("2d");
+///////////////////////////////////////
+// ✔ HUD: Cabina del avión
+///////////////////////////////////////
+function createCockpitHUD() {
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load("avion.png", (texture) => {
+    const material = new THREE.MeshBasicMaterial({ 
+      map: texture, 
+      transparent: true 
+    });
 
-  function drawScore() {
-    ctx.clearRect(0, 0, 512, 256);
-    ctx.fillStyle = "white";
-    ctx.font = "60px Arial";
-    ctx.fillText("Puntaje: " + score, 50, 140);
-    scoreText.material.map.needsUpdate = true;
-  }
+    const plane = new THREE.PlaneGeometry(3.5, 2);
+    cockpitHUD = new THREE.Mesh(plane, material);
 
-  const texture = new THREE.CanvasTexture(spriteCanvas);
-  const material = new THREE.SpriteMaterial({ map: texture });
-  scoreText = new THREE.Sprite(material);
-  scoreText.scale.set(2.5, 1.2, 1);
-  scoreText.position.set(0, 2.3, -3);
+    cockpitHUD.position.set(0, 1.5, -2.2);
+    cockpitHUD.renderOrder = 999;
 
-  scene.add(scoreText);
-
-  // Actualizar score cada vez
-  scoreText.redraw = drawScore;
-  drawScore();
+    camera.add(cockpitHUD);
+    scene.add(camera);
+  });
 }
 
-// ⭐ Crear un aro
-function createRing() {
-  const geometry = new THREE.TorusGeometry(0.4, 0.08, 16, 100);
-  const material = new THREE.MeshStandardMaterial({ color: 0x00ffcc });
+///////////////////////////////////////
+// ✔ Texto 3D – Puntaje
+///////////////////////////////////////
+function createScoreText() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
 
-  const ring = new THREE.Mesh(geometry, material);
+  const texture = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: texture });
+
+  scoreText = new THREE.Sprite(mat);
+  scoreText.scale.set(2.4, 1.2, 1);
+  scoreText.position.set(-1.2, 2.3, -3);
+
+  scoreText.redraw = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "white";
+    ctx.font = "60px Arial";
+    ctx.fillText("Puntos: " + score, 50, 150);
+    texture.needsUpdate = true;
+  };
+
+  scoreText.redraw();
+  scene.add(scoreText);
+}
+
+///////////////////////////////////////
+// ✔ Texto 3D – Temporizador
+///////////////////////////////////////
+function createTimerText() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d");
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: texture });
+
+  timeText = new THREE.Sprite(mat);
+  timeText.scale.set(2.2, 1.2, 1);
+  timeText.position.set(1.2, 2.3, -3);
+
+  timeText.redraw = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "white";
+    ctx.font = "60px Arial";
+    ctx.fillText(timeLeft + "s", 180, 150);
+    texture.needsUpdate = true;
+  };
+
+  timeText.redraw();
+  scene.add(timeText);
+}
+
+///////////////////////////////////////
+// ✔ Aros
+///////////////////////////////////////
+function createRing() {
+  const geo = new THREE.TorusGeometry(0.40, 0.08, 16, 100);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x00ffcc });
+
+  const ring = new THREE.Mesh(geo, mat);
+
   ring.position.set(
-    (Math.random() * 1.0 - 0.5),   // movimiento suave en X
-    1.6 + (Math.random() * 0.3 - 0.15), // movimiento leve vertical
+    (Math.random() * 1.0 - 0.5),
+    1.6 + (Math.random() * 0.3 - 0.15),
     -10
   );
-
-  ring.rotation.x = Math.PI / 2;
+  ring.rotation.x = Math.PI;
 
   scene.add(ring);
   rings.push(ring);
 }
 
-// ⭐ Luces
-const light1 = new THREE.HemisphereLight(0xffffff, 0x222222, 1);
-scene.add(light1);
+///////////////////////////////////////
+// ✔ Luces
+///////////////////////////////////////
+scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 1));
 
-const light2 = new THREE.DirectionalLight(0xffffff, 0.6);
-light2.position.set(5, 10, 7);
-scene.add(light2);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+dirLight.position.set(5, 10, 7);
+scene.add(dirLight);
 
-// ⭐ Empieza cuando entra en VR
+///////////////////////////////////////
+// ⭐ Inicio de juego automático
+///////////////////////////////////////
 function startGame() {
   playing = true;
   score = 0;
+  timeLeft = 30;
   rings = [];
 
-  // Crear nuevos aros cada 1.3s
-  setInterval(() => {
-    if (!playing) return;
-    createRing();
-  }, 1300);
+  scoreText.redraw();
+  timeText.redraw();
 
-  // Texto grande al iniciar
-  createStartText();
+  setInterval(() => {
+    if (playing) createRing();
+  }, 1200);
+
+  const timer = setInterval(() => {
+    if (!playing) return;
+    timeLeft--;
+    timeText.redraw();
+
+    if (timeLeft <= 0) {
+      playing = false;
+      clearInterval(timer);
+      endScreen();
+    }
+  }, 1000);
+
+  showStartMessage();
 }
 
-function createStartText() {
+///////////////////////////////////////
+// ✔ Mensaje inicial
+///////////////////////////////////////
+function showStartMessage() {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
   canvas.height = 512;
@@ -118,40 +196,61 @@ function createStartText() {
 
   ctx.fillStyle = "white";
   ctx.font = "80px Arial";
-  ctx.fillText("¡Toma los aros!", 200, 250);
+  ctx.fillText("¡Toma los aros!", 250, 250);
 
   const texture = new THREE.CanvasTexture(canvas);
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
   sprite.position.set(0, 1.8, -2.5);
   sprite.scale.set(4, 2, 1);
-  scene.add(sprite);
 
-  setTimeout(() => scene.remove(sprite), 2000);
+  camera.add(sprite);
+  setTimeout(() => camera.remove(sprite), 2000);
 }
 
-// ⭐ Detección de colisión con leve movimiento de cabeza
+///////////////////////////////////////
+// ⭐ Pantalla final (dentro del VR)
+///////////////////////////////////////
+function endScreen() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "white";
+  ctx.font = "80px Arial";
+  ctx.fillText("¡Tiempo!", 350, 180);
+  ctx.font = "60px Arial";
+  ctx.fillText("Puntaje final: " + score, 300, 300);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+
+  sprite.scale.set(4, 2, 1);
+  sprite.position.set(0, 1.7, -2.8);
+
+  camera.add(sprite);
+}
+
+///////////////////////////////////////
+// ✔ Colisión con la cabeza
+///////////////////////////////////////
 function checkRingCollision(ring) {
   const ringPos = new THREE.Vector3().setFromMatrixPosition(ring.matrixWorld);
   const headPos = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
 
-  const dx = ringPos.x - headPos.x;
-  const dy = ringPos.y - headPos.y;
-  const dz = ringPos.z - headPos.z;
-
-  const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
-
-  return dist < 0.45;
+  return ringPos.distanceTo(headPos) < 0.45;
 }
 
+///////////////////////////////////////
+// ⭐ Animación
+///////////////////////////////////////
 function animate() {
   renderer.setAnimationLoop(() => {
-    
+
     if (playing) {
-      // Mover aros hacia adelante siempre
       rings.forEach((ring, i) => {
         ring.position.z += 0.05;
 
-        // Si lo toma → puntaje
         if (checkRingCollision(ring)) {
           score++;
           scoreText.redraw();
@@ -159,7 +258,6 @@ function animate() {
           rings.splice(i, 1);
         }
 
-        // Si pasa al jugador → borrar
         if (ring.position.z > 1) {
           scene.remove(ring);
           rings.splice(i, 1);
