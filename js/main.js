@@ -72,14 +72,14 @@ loadAndAddGLBModel(
 loadAndAddGLBModel(
   'modelos/avion2.glb',
   { x: 3, y: 0, z: -3},
-  { x: 0.5, y: 0.5, z: 0.5 },
+  { x: 0.02, y: 0.02, z: 0.02 },
   { x: 0, y: 2.5, z: 0 },
   scene
 );
 loadAndAddGLBModel(
   'modelos/avion3.glb',
   { x: 3, y: 0, z: -1},
-  { x: 0.3, y: 0.3, z: 0.3 },
+  { x: 0.02, y: 0.02, z: 0.02 },
   { x: 0, y: 2.5, z: 0 },
   scene
 );
