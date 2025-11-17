@@ -1,190 +1,191 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>MiniJuego de Vuelo</title>
-<style>
-  body { margin: 0; overflow: hidden; }
-  #scoreUI {
-    position: fixed;
-    top: 10px; left: 10px;
-    color: white;
-    font-size: 24px;
-    font-family: Arial;
-    z-index: 10;
-  }
-  #timerUI {
-    position: fixed;
-    top: 10px; right: 10px;
-    color: white;
-    font-size: 24px;
-    font-family: Arial;
-    z-index: 10;
-  }
-  #endScreen {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.8);
-    color: white;
-    font-family: Arial;
-    text-align: center;
-    padding-top: 150px;
-    font-size: 28px;
-    z-index: 50;
-  }
-  #endScreen button {
-    margin-top: 30px;
-    padding: 15px 45px;
-    font-size: 20px;
-    cursor: pointer;
-  }
-</style>
+  <meta charset="UTF-8">
+  <title>MiniJuego VR</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
 </head>
 
 <body>
-<div id="scoreUI">Puntos: 0</div>
-<div id="timerUI">Tiempo: 60</div>
-
-<div id="endScreen">
-  <h1>¡Tiempo terminado!</h1>
-  <p>Puntaje final: <span id="finalScore">0</span></p>
-  <button onclick="location.reload()">Reiniciar</button>
-</div>
-
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js';
-import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js';
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js";
+import { VRButton } from "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js";
 
-// === Escena ===
+// ============================
+//  ESCENA BÁSICA
+// ============================
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x003366);
-
-const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
 camera.position.set(0, 1.6, 0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-// === Luz ===
+// ============================
+//  LUZ
+// ============================
 const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 10, 5);
+light.position.set(3, 5, 3);
 scene.add(light);
 
-// === Joystick ===
-let vrController = null;
-renderer.xr.addEventListener('sessionstart', () => {
-  vrController = renderer.xr.getController(0);
-  scene.add(vrController);
-});
+// ============================
+//  HUD — PUNTAJE Y TIEMPO EN CANVAS
+// ============================
+const hudCanvas = document.createElement("canvas");
+hudCanvas.width = 1024;
+hudCanvas.height = 256;
+const hudCtx = hudCanvas.getContext("2d");
 
-// === Aros ===
+const hudTexture = new THREE.CanvasTexture(hudCanvas);
+const hudMaterial = new THREE.MeshBasicMaterial({ map:hudTexture, transparent:true });
+const hudMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.6), hudMaterial);
+hudMesh.position.set(0, 2.2, -3);
+scene.add(hudMesh);
+
+let score = 0;
+let timeLeft = 45;
+
+function updateHUD() {
+  hudCtx.clearRect(0,0,1024,256);
+  hudCtx.fillStyle = "rgba(0,0,0,0.5)";
+  hudCtx.fillRect(0,0,1024,256);
+
+  hudCtx.fillStyle = "#ffffff";
+  hudCtx.font = "80px Arial";
+  hudCtx.textAlign = "center";
+  hudCtx.fillText("Puntos: " + score, 512, 110);
+  hudCtx.fillText("Tiempo: " + timeLeft, 512, 210);
+
+  hudTexture.needsUpdate = true;
+}
+
+// Temporizador
+setInterval(() => {
+  if (timeLeft > 0) timeLeft--;
+  updateHUD();
+}, 1000);
+
+// ============================
+//  AROS
+// ============================
 const rings = [];
-function createRing(zPos) {
-  const geo = new THREE.TorusGeometry(1, 0.08, 16, 32);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-  const ring = new THREE.Mesh(geo, mat);
 
-  ring.position.set(
-    (Math.random() - 0.5) * 4,
-    1.6 + (Math.random() - 0.5) * 2,
-    zPos
-  );
-  ring.rotation.x = Math.PI;
-
-  ring.userData.active = true;
+function createRing(x, y, z) {
+  const ringGeo = new THREE.TorusGeometry(0.4, 0.06, 16, 50);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffea });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.set(x, y, z);
   scene.add(ring);
   rings.push(ring);
 }
 
-for (let i = 0; i < 10; i++) {
-  createRing(-10 - i * 10);
-}
+function spawnRings() {
+  rings.forEach(r => scene.remove(r));
+  rings.length = 0;
 
-// === PUNTOS Y TIEMPO ===
-let score = 0;
-let time = 60;
-const scoreUI = document.getElementById("scoreUI");
-const timerUI = document.getElementById("timerUI");
-
-setInterval(() => {
-  if (time > 0) {
-    time--;
-    timerUI.textContent = "Tiempo: " + time;
+  for (let i = 1; i <= 12; i++) {
+    createRing(
+      (Math.random() - 0.5) * 1.2, // Mover solo poquito en X
+      1.6 + (Math.random() - 0.5) * 0.5, // Un poco de altura
+      -3 - i * 2.5
+    );
   }
-}, 1000);
-
-// === Final del juego ===
-function endGame() {
-  document.getElementById("finalScore").textContent = score;
-  document.getElementById("endScreen").style.display = "block";
 }
+spawnRings();
 
-// === Movimiento del avión ===
-const DEADZONE = 0.3;
-function updateMovement() {
-  if (!vrController?.gamepad) return;
-
-  const axes = vrController.gamepad.axes;
-  let x = axes[0], y = axes[1];
-
-  if (Math.abs(x) < DEADZONE) x = 0;
-  if (Math.abs(y) < DEADZONE) y = 0;
-
-  camera.position.x += x * 0.05;
-  camera.position.y -= y * 0.05;
-
-  camera.position.y = THREE.MathUtils.clamp(camera.position.y, 0.5, 3);
-}
-
-// === Detectar si pasa por aro ===
+// ============================
+//  DETECCIÓN DE AROS
+// ============================
 function checkRings() {
-  rings.forEach(r => {
-    if (!r.userData.active) return;
-
-    if (camera.position.distanceTo(r.position) < 1.2) {
-      r.material.color.set(0x00ff00);
-      r.userData.active = false;
-
+  rings.forEach((ring, index) => {
+    const dist = camera.position.distanceTo(ring.position);
+    if (dist < 0.55) {
       score++;
-      scoreUI.textContent = "Puntos: " + score;
+      updateHUD();
+
+      // Efecto de desaparición
+      ring.material.color.set(0x00ff00);
+      setTimeout(() => {
+        scene.remove(ring);
+        rings.splice(index, 1);
+      }, 100);
     }
   });
 }
 
-// === Animar ===
-function animate() {
-  if (time <= 0) {
-    endGame();
-    return;
-  }
+// ============================
+//  MOVIMIENTO DE LA CABEZA
+//  Se permite mover la cabeza *un poco* en X y Y
+// ============================
+let headX = 0;
+let headY = 1.6;
 
-  updateMovement();
+function updateHeadMovement() {
+  // Obtener rotación del HMD (VRBox)
+  const e = camera.rotation;
+
+  // Muy poca sensibilidad
+  headX = THREE.MathUtils.lerp(headX, e.y * 1.2, 0.05);
+  headY = THREE.MathUtils.lerp(headY, 1.6 + e.x * -0.6, 0.05);
+
+  camera.position.x = headX;
+  camera.position.y = headY;
+}
+
+// ============================
+//  TEXTO 3D INICIAL
+// ============================
+function makeText(msg) {
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 256;
+  const ctx = c.getContext("2d");
+
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0,0,c.width,c.height);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "80px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(msg, 512, 140);
+
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent:true });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3,0.8), mat);
+  mesh.position.set(0, 1.4, -2);
+  return mesh;
+}
+
+const startText = makeText("Pasa por los aros");
+scene.add(startText);
+setTimeout(() => scene.remove(startText), 3000);
+
+// ============================
+//  LOOP PRINCIPAL
+// ============================
+renderer.setAnimationLoop(() => {
+
+  updateHeadMovement();
+
   checkRings();
 
-  rings.forEach(r => {
-    r.position.z += 0.1;
-    if (r.position.z > 2) {
-      r.position.z = -80;
-      r.userData.active = true;
-      r.material.color.set(0xffff00);
-    }
-  });
-
   renderer.render(scene, camera);
-}
-
-renderer.setAnimationLoop(animate);
-
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
 });
-</script>
 
+// ============================
+//  RESPONSIVE
+// ============================
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
 </body>
 </html>
