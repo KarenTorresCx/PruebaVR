@@ -2,52 +2,94 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Simulador de Vuelo VR</title>
-  <link rel="stylesheet" href="./style.css" />
-
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
-      }
-    }
-  </script>
+  <title>VR Box - Control con Mouse</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
 </head>
-
 <body>
 
-  <div id="startScreen">
-    <h1>Simulación de Vuelo VR</h1>
-    <p>Presiona el botón para comenzar</p>
-    <button id="startBtn">Iniciar Vuelo</button>
-  </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+<script>
 
-  <div id="container"></div>
+// ---------------------------
+// VARIABLES
+// ---------------------------
+let scene, camera, renderer;
+let cube;
 
-  <div id="scoreHUD">SCORE: 0</div>
-  <div id="timerHUD">TIME: 60s</div>
+// guardamos cuando C está presionado
+let isMoving = false;
 
-  <div id="endScreen">
-    <h1>¡Tiempo terminado!</h1>
-    <p>Puntaje final: <strong id="finalScore">0</strong></p>
-    <button id="restartBtn">Reiniciar</button>
-  </div>
+// sensibilidad para mover
+const sensitivity = 0.02;
 
-  <script type="module" src="./js/main.js"></script>
+// ---------------------------
+// INICIALIZAR
+// ---------------------------
+function init() {
+  scene = new THREE.Scene();
 
-  <script>
-    document.getElementById('startBtn').addEventListener('click', () => {
-      document.getElementById('startScreen').style.display = 'none';
-      document.body.requestFullscreen();
-      window.startGame && window.startGame();
-    });
+  camera = new THREE.PerspectiveCamera(
+    75, window.innerWidth / window.innerHeight, 0.1, 1000
+  );
+  camera.position.z = 5;
 
-    document.getElementById('restartBtn').addEventListener('click', () => {
-      location.reload();
-    });
-  </script>
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
 
+  // Cubo
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshStandardMaterial({ color: 0x00ffcc });
+  cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+
+  // Luz
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(3, 5, 4);
+  scene.add(light);
+
+  animate();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+
+// ---------------------------
+// EVENTOS DEL MOUSE
+// ---------------------------
+
+// Movimiento del joystick = mover cursor
+document.addEventListener("mousemove", (e) => {
+  if (!isMoving) return; // solo mover cuando esté presionado el botón C
+
+  cube.position.x += e.movementX * sensitivity;
+  cube.position.y -= e.movementY * sensitivity;
+});
+
+// Botón C o D → Android lo manda como scroll (wheel) o click
+document.addEventListener("mousedown", (e) => {
+  // Botón principal del control = activar movimiento
+  isMoving = true;
+});
+
+document.addEventListener("mouseup", (e) => {
+  isMoving = false;
+});
+
+// También capturamos wheel por si C manda scroll
+document.addEventListener("wheel", () => {
+  isMoving = true;
+  setTimeout(() => isMoving = false, 150); // corta rápido
+});
+
+// ---------------------------
+init();
+
+</script>
 </body>
 </html>
