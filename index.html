@@ -31,23 +31,36 @@ import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
       console.log("🎮 Gamepad conectado:", e.gamepad);
   });
 
-  let lastLog = 0;
+  let prevButtons = [];
+let prevAxes = [];
 
 function debugGamepad() {
     if (gamepadIndex === null) return;
+
     const gp = navigator.getGamepads()[gamepadIndex];
     if (!gp) return;
 
-    const now = performance.now();
+    let changed = false;
 
-    // Solo loguea cada 200ms (=5 veces por segundo)
-    if (now - lastLog > 200) {
-        console.clear();
-        console.log("Botones:", gp.buttons.map(b => b.pressed));
-        console.log("Ejes:", gp.axes);
-        lastLog = now;
+    // ------- Detectar cambio en botones -------
+    const currentButtons = gp.buttons.map(b => b.pressed);
+
+    if (JSON.stringify(currentButtons) !== JSON.stringify(prevButtons)) {
+        console.log("Botones:", currentButtons);
+        prevButtons = currentButtons;
+        changed = true;
+    }
+
+    // ------- Detectar cambio en ejes -------
+    const currentAxes = gp.axes.map(v => parseFloat(v.toFixed(2))); // redondeo para evitar ruido
+
+    if (JSON.stringify(currentAxes) !== JSON.stringify(prevAxes)) {
+        console.log("Ejes:", currentAxes);
+        prevAxes = currentAxes;
+        changed = true;
     }
 }
+
 
 
   function animate() {
