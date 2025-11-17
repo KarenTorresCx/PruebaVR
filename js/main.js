@@ -1,55 +1,73 @@
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader }   from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/loaders/GLTFLoader.js';
-import { VRButton }     from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js';
 
+///scene
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 5;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setAnimationLoop(animate);
+document.body.appendChild(renderer.domElement);
 renderer.xr.enabled = true;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.appendChild(renderer.domElement);
+
+//boton VR
 document.body.appendChild(VRButton.createButton(renderer));
 
-// HDRI fondo
-const cubeLoader = new THREE.CubeTextureLoader();
-cubeLoader.setPath('cubemap/');
-const textureCube = cubeLoader.load(['px.png','nx.png','py.png','ny.png','pz.png','nz.png']);
-scene.background = textureCube;
+//texture HDRI
+const loader = new THREE.CubeTextureLoader();
+loader.setPath('cubemap/');
+const textureCube = loader.load([
+  'px.png', 'nx.png',
+  'py.png', 'ny.png',
+  'pz.png', 'nz.png'
+]);
+scene.background = textureCube
 
-// Luces
-scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(5, 10, 7);
-scene.add(dirLight);
+//manager
+const manager = new THREE.LoadingManager();
+// Modelos GLB
+const loaderGLB = new GLTFLoader(manager);
 
-// Controles desktop
+//orbit
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
+controls.target.set(0, 0, 0);
+controls.update();
 
-// Cargar avión
-const gltfLoader = new GLTFLoader();
-let avionModel = null;
-let isRotating = false;
+const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+const cube = new THREE.Mesh( geometry, material );
+cube.position.set(0, 2, -3);
+scene.add( cube );
 
-gltfLoader.load('modelos/avionV.glb', (gltf) => {
-  avionModel = gltf.scene;
-  avionModel.position.set(0, 2, -3);
-  avionModel.scale.set(0.003, 0.003, 0.003);
-  avionModel.rotation.y = Math.PI / 2;
-  avionModel.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
+camera.position.z = 5;
+
+//Modelos GLB
+function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
+  loaderGLB.load(filePath, function (gltf) {
+    const model = gltf.scene;
+    model.position.set(position.x, position.y, position.z);
+    model.scale.set(scale.x, scale.y, scale.z);
+    model.rotation.set(rotation.x, rotation.y, rotation.z);
+    model.castShadow = true;
+    model.receiveShadow = true;
+    scene.add(model);
+  }, undefined, function (error) {
+    console.error('Error loading GLB model:', error);
   });
-  scene.add(avionModel);
-});
+}
+//verde
+loadAndAddGLBModel(
+  'modelos/avionV.glb',
+  { x: 0, y: 2, z: -3},
+  { x: 0.003, y: 0.003, z: 0.003 },
+  { x: 0, y: Math.PI/2, z: 0 },
+  scene
+);
 
 // UI en VR: Esfera de curiosidades + Botón minijuego
 let infoSphere, playButton;
@@ -260,99 +278,21 @@ function startMinigame() {
   initGame();
   currentGameScene = container;
 }
-
-// Controlador VRBox
-let vrController = null;
-let laserPointer = null;
-
-const laserGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-20)]);
-const laserMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4, transparent: true, opacity: 0.8 });
-laserPointer = new THREE.Line(laserGeo, laserMat);
-laserPointer.visible = false;
-
-const DEADZONE = 0.25;
-const SENSITIVITY = 3.0;
-
-renderer.xr.addEventListener('sessionstart', () => {
-  const controller = renderer.xr.getController(0);
-  controller.position.set(0, 1.6, 0);
-  controller.add(laserPointer);
-  scene.add(controller);
-  vrController = controller;
-
-  controller.addEventListener('select', onSelect);
-});
-
-function onSelect() {
-  if (!vrController) return;
-
-  const tempMatrix = new THREE.Matrix4();
-  tempMatrix.identity().extractRotation(vrController.matrixWorld);
-  const raycaster = new THREE.Raycaster();
-  raycaster.ray.origin.setFromMatrixPosition(vrController.matrixWorld);
-  raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
-
-  const intersects = raycaster.intersectObjects(scene.children, true);
-
-  if (intersects.length > 0) {
-    const obj = intersects[0].object;
-
-    // 1. Clic en el avión → rotar
-    if (avionModel && (obj === avionModel || avionModel.children.includes(obj))) {
-      isRotating = !isRotating;
-      console.log("Avión en rotación:", isRotating ? "ON" : "OFF");
-    }
-
-    // 2. Clic en esfera de curiosidades
-    if (obj === infoSphere) {
-      showInfoPanel();
-    }
-
-    // 3. Clic en botón jugar
-    if (obj === playButton) {
-      startMinigame();
-    }
-  }
-}
-
-function handleController() {
-  if (!vrController?.gamepad) return;
-  const axes = vrController.gamepad.axes;
-  if (axes.length < 2) return;
-
-  let x = axes[0], y = axes[1];
-  if (Math.abs(x) < DEADZONE) x = 0;
-  if (Math.abs(y) < DEADZONE) y = 0;
-
-  vrController.rotation.y -= x * SENSITIVITY * 0.05;
-  vrController.rotation.x -= y * SENSITIVITY * 0.05;
-  vrController.rotation.x = THREE.MathUtils.clamp(vrController.rotation.x, -Math.PI/2 + 0.2, Math.PI/2 - 0.2);
-}
-
-// Animación principal
 function animate() {
+
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.01;
+
+  // Manejar mando VRBox
   if (vrController) {
-    handleController();
+    handleController(vrController);
     laserPointer.visible = true;
   } else {
     laserPointer.visible = false;
   }
 
-  if (avionModel && isRotating) {
-    avionModel.rotation.y += 0.01;
-  }
-
-  cube.rotation.x += 0.01;
-  cube.rotation.y += 0.01;
-
   controls.update();
-  renderer.render(scene, camera);
+
+  renderer.render( scene, camera );
+
 }
-
-renderer.setAnimationLoop(animate);
-
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
