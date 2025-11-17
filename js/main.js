@@ -60,7 +60,7 @@ loaderGLB.load('modelos/avion2.glb', (gltf) => {
     const infoGeo = new THREE.SphereGeometry(0.2, 32, 32);
     const infoMat = new THREE.MeshBasicMaterial({ color: 0x00aaff });
     infoSphere = new THREE.Mesh(infoGeo, infoMat);
-    infoSphere.position.set(-1, 3, -3);
+    infoSphere.position.set(-1, 3, 0);
     infoSphere.userData.type = "info";
     scene.add(infoSphere);
 
