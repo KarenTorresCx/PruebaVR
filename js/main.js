@@ -22,9 +22,9 @@ document.body.appendChild(VRButton.createButton(renderer));
 const loader = new THREE.CubeTextureLoader();
 loader.setPath('cubemap/');
 const textureCube = loader.load([
-    'px.png', 'nx.png',
-    'py.png', 'ny.png',
-    'pz.png', 'nz.png'
+  'px.png', 'nx.png',
+  'py.png', 'ny.png',
+  'pz.png', 'nz.png'
 ]);
 scene.background = textureCube
 
@@ -38,10 +38,10 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0, 0);
 controls.update();
 
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+const cube = new THREE.Mesh( geometry, material );
+scene.add( cube );
 
 camera.position.z = 5;
 
@@ -86,14 +86,14 @@ let vrController = null;
 let laserPointer = null;
 
 const laserGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0, 0, -20)
+  new THREE.Vector3(0, 0, 0),
+  new THREE.Vector3(0, 0, -20)
 ]);
 const laserMaterial = new THREE.LineBasicMaterial({
-    color: 0xff0000,
-    linewidth: 3,
-    opacity: 0.8,
-    transparent: true
+  color: 0xff0000,
+  linewidth: 3,
+  opacity: 0.8,
+  transparent: true
 });
 laserPointer = new THREE.Line(laserGeometry, laserMaterial);
 laserPointer.visible = false;
@@ -102,112 +102,90 @@ laserPointer.visible = false;
 const DEADZONE = 0.25;
 const SENSITIVITY = 3.0;
 
-// ==================== CALIBRACIÓN PERFECTA PARA VRBOX 2025 ====================
+// Detectar cuando se conecta el mando VRBox
 renderer.xr.addEventListener('sessionstart', () => {
-    console.log("VR iniciada – aplicando calibración VRBox Colombia");
+  const controller = renderer.xr.getController(0);
+  
+  // ¡¡ESTAS SON LAS LÍNEAS CLAVE!!
+  controller.position.set(0, 10, 0);   // altura de ojos
+  controller.rotation.set(THREE.MathUtils.degToRad(15), 0, 0);
 
-    const controller = renderer.xr.getController(0);
-    const grip = renderer.xr.getControllerGrip(0);
+  controller.add(laserPointer);
+  scene.add(controller);
+  vrController = controller;
 
-    // POSICIÓN NATURAL DEL MANDO (la que funciona en el 98 % de VRBox en Colombia)
-    controller.position.set(0.35, 1.1, -0.55);   // mano derecha, altura real, 55 cm adelante
-    controller.rotation.set(
-        THREE.MathUtils.degToRad(25),   // inclinado 25° hacia abajo (apunta natural)
-        THREE.MathUtils.degToRad(-15),  // ligeramente girado hacia el centro
-        0
-    );
+  controller.addEventListener('select', () => {
+    performRaycastClick();
+  });
 
-    // Copiar la misma posición al "grip" (modelo del mando)
-    grip.position.copy(controller.position);
-    grip.rotation.copy(controller.rotation);
-
-    // Añadir láser al controlador
-    controller.add(laserPointer);
-    scene.add(controller);
-    scene.add(grip);
-
-    vrController = controller;
-
-    // Clic con gatillo superior
-    controller.addEventListener('select', () => {
-        performRaycastClick();
-    });
-
-    // OPCIONAL: botón para recalibrar en tiempo real (presiona el botón "A" del mando)
-    controller.addEventListener('selectstart', () => {
-        // al mantener presionado el gatillo 2 segundos → recalibra automáticamente
-        const recalibrateTimeout = setTimeout(() => {
-            alert("¡Recalibrando! Mira al frente y mantén el mando quieto...");
-            controller.position.set(0.35, 1.1, -0.55);
-            controller.rotation.set(THREE.MathUtils.degToRad(25), THREE.MathUtils.degToRad(-15), 0);
-        }, 2000);
-
-        controller.addEventListener('selectend', () => clearTimeout(recalibrateTimeout), { once: true });
-    });
+  const grip = renderer.xr.getControllerGrip(0);
+  grip.position.copy(controller.position);
+  grip.rotation.copy(controller.rotation);
+  scene.add(grip);
 });
 
 // Manejar el joystick con zona de muerte
 function handleController(controller) {
-    if (!controller?.gamepad) return;
+  if (!controller?.gamepad) return;
 
-    const axes = controller.gamepad.axes;
-    if (axes.length < 2) return;
+  const axes = controller.gamepad.axes;
+  if (axes.length < 2) return;
 
-    let x = axes[0];
-    let y = axes[1];
+  let x = axes[0];
+  let y = axes[1];
 
-    // Zona de muerte
-    if (Math.abs(x) < DEADZONE) x = 0;
-    if (Math.abs(y) < DEADZONE) y = 0;
+  // Zona de muerte
+  if (Math.abs(x) < DEADZONE) x = 0;
+  if (Math.abs(y) < DEADZONE) y = 0;
 
-    // Aplicar movimiento suave
-    controller.rotation.y -= x * SENSITIVITY * 0.05;
-    controller.rotation.x -= y * SENSITIVITY * 0.05;
+  // Aplicar movimiento suave
+  controller.rotation.y -= x * SENSITIVITY * 0.05;
+  controller.rotation.x -= y * SENSITIVITY * 0.05;
 
-    // Limitar arriba/abajo
-    controller.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, controller.rotation.x));
+  // Limitar arriba/abajo
+  controller.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, controller.rotation.x));
 }
 
 // Raycast al hacer clic
 function performRaycastClick() {
-    if (!vrController) return;
+  if (!vrController) return;
 
-    const tempMatrix = new THREE.Matrix4();
-    tempMatrix.identity().extractRotation(vrController.matrixWorld);
+  const tempMatrix = new THREE.Matrix4();
+  tempMatrix.identity().extractRotation(vrController.matrixWorld);
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.ray.origin.setFromMatrixPosition(vrController.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+  const raycaster = new THREE.Raycaster();
+  raycaster.ray.origin.setFromMatrixPosition(vrController.matrixWorld);
+  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-    const intersects = raycaster.intersectObjects(scene.children, true);
+  const intersects = raycaster.intersectObjects(scene.children, true);
 
-    if (intersects.length > 0) {
-        const obj = intersects[0].object;
-        console.log("Tocaste:", obj);
+  if (intersects.length > 0) {
+    const obj = intersects[0].object;
+    console.log("Tocaste:", obj);
 
-        if (obj === cube) {
-            cube.material.color.set(Math.random() * 0xffffff);
-            cube.scale.set(1.5, 1.5, 1.5);
-            setTimeout(() => cube.scale.set(1, 1, 1), 200);
-        }
+    if (obj === cube) {
+      cube.material.color.set(Math.random() * 0xffffff);
+      cube.scale.set(1.5, 1.5, 1.5);
+      setTimeout(() => cube.scale.set(1, 1, 1), 200);
     }
+  }
 }
 
 function animate() {
 
-    cube.rotation.x += 0.01;
-    cube.rotation.y += 0.01;
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.01;
 
-    // Manejar mando VRBox
-    if (vrController) {
-        handleController(vrController);
-        laserPointer.visible = true;
-    } else {
-        laserPointer.visible = false;
-    }
+  // Manejar mando VRBox
+  if (vrController) {
+    handleController(vrController);
+    laserPointer.visible = true;
+  } else {
+    laserPointer.visible = false;
+  }
 
-    controls.update();
+  controls.update();
 
-    renderer.render(scene, camera);
+  renderer.render( scene, camera );
 
 }
