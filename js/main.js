@@ -135,11 +135,11 @@ loader.load('modelos/avion2.glb', gltf => {
   scene.add(avion);
 
   // Botón información
-  infoButton = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1.2, 7, -3, "info");
+  infoButton = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1.2, 3, -3, "info");
   scene.add(infoButton);
 
   // Botón minijuego
-  gameButton = createInteractiveButton("MINIJUEGO", 0x00cc66, 1.2, 7, -3, "game");
+  gameButton = createInteractiveButton("MINIJUEGO", 0x00cc66, 1.2, 3, -3, "game");
   scene.add(gameButton);
 
   // Panel oculto
