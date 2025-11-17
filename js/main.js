@@ -104,21 +104,24 @@ const SENSITIVITY = 3.0;
 
 // Detectar cuando se conecta el mando VRBox
 renderer.xr.addEventListener('sessionstart', () => {
-  console.log("Sesión VR iniciada");
-
   const controller = renderer.xr.getController(0);
+  
+  // ¡¡ESTAS SON LAS LÍNEAS CLAVE!!
+  controller.position.set(0, 1.4, -0.6);   // altura de ojos reales + 60 cm delante
+  // opcional: inclinarlo un poco hacia abajo para que apunte más natural
+  controller.rotation.set(THREE.MathUtils.degToRad(15), 0, 0);
+
   controller.add(laserPointer);
   scene.add(controller);
   vrController = controller;
 
-  // Evento de clic (gatillo superior del mando VRBox)
   controller.addEventListener('select', () => {
-    console.log("¡Clic con el gatillo!");
     performRaycastClick();
   });
 
-  // Opcional: modelo del mando
   const grip = renderer.xr.getControllerGrip(0);
+  grip.position.copy(controller.position);
+  grip.rotation.copy(controller.rotation);
   scene.add(grip);
 });
 
