@@ -64,7 +64,7 @@ function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
 loadAndAddGLBModel(
   'modelos/avion1.glb',
   { x: 0, y: 2, z: 4},
-  { x: 0.002, y: 0.002, z: 0.002 },
+  { x: 0.02, y: 0.02, z: 0.02 },
   { x: 0, y: 0, z: 0 },
   scene
 );
@@ -72,7 +72,7 @@ loadAndAddGLBModel(
 loadAndAddGLBModel(
   'modelos/avion2.glb',
   { x: 0, y: 2, z: 7},
-  { x: 0.05, y: 0.05, z: 0.05 },
+  { x: 0.005, y: 0.005, z: 0.005 },
   { x: 0, y: 2.5, z: 0 },
   scene
 );
