@@ -1,200 +1,256 @@
 import * as THREE from 'three';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
 
-// === ELEMENTOS ===
-let camera, scene, renderer, player;
-let rings = [];
-let score = 0, timeLeft = 60, gameOver = false;
-const scoreEl = document.getElementById('score');
-const timerEl = document.getElementById('timer');
-const gameOverEl = document.getElementById('gameOver');
-const finalScoreEl = document.getElementById('finalScore');
+let camera, scene, renderer, clock;
+let player, rings = [];
+let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+let cabina, score = 0;
+let scoreElement, timerElement, endScreen, finalScore;
+let gameOver = false;
+let gameTime = 60;
+let gameStarted = false;
 
-// === FÍSICA ===
-let speed = 0;
-let lateral = 0;
-const MAX_SPEED = 40;
-const MAX_LATERAL = 25;
-const DEADZONE = 0.2;
-const TUNNEL_WIDTH = 80;
+// GAMEPAD
+let lastButtons = [];
+let lastAxes = [];
+let gamepadConnected = false;
+const AXIS_THRESHOLD = 0.25;
 
-// === INICIO ===
-init();
-animate();
-startTimer();
+export function startGame() {
+  if (!gameStarted) {
+    gameStarted = true;
+    init();
+    animate();
+  }
+}
+window.startGame = startGame;
 
-// === INICIALIZACIÓN ===
 function init() {
-  // Renderer
+  scoreElement = document.getElementById('scoreHUD');
+  timerElement = document.getElementById('timerHUD');
+  endScreen = document.getElementById('endScreen');
+  finalScore = document.getElementById('finalScore');
+
+  scoreElement.style.display = 'block';
+  timerElement.style.display = 'block';
+
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
   renderer.xr.enabled = true;
-  document.getElementById('container').appendChild(renderer.domElement);
+  document.getElementById('container')?.appendChild(renderer.domElement);
 
-  // VR Button
-  document.getElementById('vrButton').appendChild(VRButton.createButton(renderer));
+  document.body.appendChild(VRButton.createButton(renderer));
 
-  // Escena
   scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x001122, 0.002);
+  scene.fog = new THREE.FogExp2(0x0f0f1f, 0.001);
 
-  // Cámara
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 1.8, 5);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+  camera.position.set(0, 2, 5);
 
-  // Skybox
-  const loader = new THREE.CubeTextureLoader();
-  loader.setPath('cubemap/');
-  scene.background = loader.load(['px.png','nx.png','py.png','ny.png','pz.png','nz.png']);
+  const cubeLoader = new THREE.CubeTextureLoader();
+  cubeLoader.setPath('cubemap/');
+  const textureCube = cubeLoader.load(['px.png','nx.png','py.png','ny.png','pz.png','nz.png']);
+  scene.background = textureCube;
 
-  // Luces
-  scene.add(new THREE.AmbientLight(0x404040));
-  const sun = new THREE.DirectionalLight(0xaaccff, 1.2);
-  sun.position.set(50, 100, 50);
-  scene.add(sun);
+  const textureLoader = new THREE.TextureLoader();
 
-  // Jugador
-  player = new THREE.Object3D();
+  const playerGeometry = new THREE.CapsuleGeometry(0.5, 1.5, 8, 16);
+  const playerMaterial = new THREE.MeshBasicMaterial({ visible: false });
+  player = new THREE.Mesh(playerGeometry, playerMaterial);
   scene.add(player);
 
-  // HUD Cabina
-  const hudTex = new THREE.TextureLoader().load('textures/avionhud.png');
-  const hudMat = new THREE.MeshBasicMaterial({ map: hudTex, transparent: true, opacity: 0.8, depthTest: false });
-  const hud = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), hudMat);
-  hud.position.z = -1;
-  camera.add(hud);
+  const cabinaTexture = textureLoader.load('textures/avionhud.png');
+  const cabinaMaterial = new THREE.MeshBasicMaterial({
+    map: cabinaTexture,
+    transparent: true,
+    opacity: 1,
+    side: THREE.DoubleSide,
+    depthTest: false
+  });
+
+  const aspect = window.innerWidth / window.innerHeight;
+  const hudHeight = 2;
+  const hudWidth = hudHeight * aspect;
+
+  cabina = new THREE.Mesh(new THREE.PlaneGeometry(hudWidth, hudHeight), cabinaMaterial);
+  cabina.position.set(0, 0, -1.4);
+  camera.add(cabina);
   scene.add(camera);
 
-  // Generar aros
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const sun = new THREE.DirectionalLight(0x99ccff, 1.2);
+  sun.position.set(100, 100, 50);
+  sun.castShadow = true;
+  scene.add(sun);
+
   generateRings(30);
 
-  // Resize
-  window.addEventListener('resize', onWindowResize);
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keyup', onKeyUp);
+
+  window.addEventListener("gamepadconnected", e => {
+    console.log("Gamepad conectado:", e.gamepad);
+    gamepadConnected = true;
+    trackGamepad();
+  });
+
+  window.addEventListener("resize", onWindowResize);
+
+  clock = new THREE.Clock();
+  startTimer();
 }
 
-// === GENERAR AROS ===
 function generateRings(count) {
-  const geo = new THREE.TorusGeometry(12, 3, 16, 100);
+  const geometry = new THREE.TorusGeometry(18, 4, 16, 100);
+
   for (let i = 0; i < count; i++) {
-    const hue = Math.random() * 360;
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(`hsl(${hue}, 100%, 60%)`),
-      emissive: new THREE.Color(`hsl(${hue}, 100%, 40%)`),
-      metalness: 0.8, roughness: 0.2
+    const color = new THREE.Color(`hsl(${Math.random() * 360}, 100%, 60%)`);
+    const material = new THREE.MeshStandardMaterial({
+      color: color,
+      metalness: 1.0,
+      roughness: 0.15,
+      emissive: color.clone().multiplyScalar(0.5),
+      emissiveIntensity: 0.7
     });
-    const ring = new THREE.Mesh(geo, mat);
+
+    const ring = new THREE.Mesh(geometry, material);
     ring.rotation.x = Math.PI;
-    ring.position.set(
-      (Math.random() - 0.5) * 200,
-      Math.random() * 20,
-      -100 - i * 50
-    );
-    ring.userData = { hue, speed: 0.02 + Math.random() * 0.02 };
+    ring.position.set((Math.random() - 0.5) * 400, 5, -150 - i * 70 - Math.random() * 50);
+
+    ring.userData = {
+      hue: Math.random() * 360,
+      rotationSpeed: Math.random() * 0.02 + 0.01,
+      colorSpeed: 0.5 + Math.random() * 0.5
+    };
+
     rings.push(ring);
     scene.add(ring);
   }
 }
 
-// === CONTROLES JOYSTICK ===
-function updateControls() {
+// KEYBOARD
+function onKeyDown(e) {
+  if (gameOver) return;
+  if (e.code === 'KeyW') moveForward = true;
+  if (e.code === 'KeyS') moveBackward = true;
+  if (e.code === 'KeyA') moveLeft = true;
+  if (e.code === 'KeyD') moveRight = true;
+}
+function onKeyUp(e) {
+  if (e.code === 'KeyW') moveForward = false;
+  if (e.code === 'KeyS') moveBackward = false;
+  if (e.code === 'KeyA') moveLeft = false;
+  if (e.code === 'KeyD') moveRight = false;
+}
+
+function trackGamepad() {
   const gp = navigator.getGamepads()[0];
-  if (!gp) return;
+  if (!gp) {
+    requestAnimationFrame(trackGamepad);
+    return;
+  }
 
-  const x = gp.axes[0] || 0;
-  const y = gp.axes[1] || 0;
+  gp.buttons.forEach((btn, i) => {
+    if (btn.pressed !== lastButtons[i]) {
+      console.log("Botón", i, btn.pressed);
+      lastButtons[i] = btn.pressed;
 
-  // Acelerar / Frenar
-  if (y < -DEADZONE) speed = THREE.MathUtils.lerp(speed, MAX_SPEED, 0.1);
-  else if (y > DEADZONE) speed = THREE.MathUtils.lerp(speed, 0, 0.15);
-  else speed *= 0.94;
+      if (i === 2) moveForward = btn.pressed; // Botón C
+    }
+  });
 
-  // Lateral
-  if (Math.abs(x) > DEADZONE) lateral = THREE.MathUtils.lerp(lateral, x * MAX_LATERAL, 0.12);
-  else lateral *= 0.88;
+  gp.axes.forEach((value, i) => {
+    const v = Math.abs(value) < AXIS_THRESHOLD ? 0 : Number(value.toFixed(2));
+    if (v !== lastAxes[i]) {
+      console.log("Eje", i, v);
+      lastAxes[i] = v;
+
+      if (i === 0) { moveLeft = v < -0.3; moveRight = v > 0.3; }
+      if (i === 1) { moveForward = v < -0.3; moveBackward = v > 0.3; }
+    }
+  });
+
+  requestAnimationFrame(trackGamepad);
 }
 
-// === ACTUALIZAR JUGADOR ===
 function updatePlayer(delta) {
-  updateControls();
+  const speed = 20 * delta;
+  if (moveForward) player.position.z -= speed;
+  if (moveBackward) player.position.z += speed;
+  if (moveLeft) player.position.x -= speed;
+  if (moveRight) player.position.x += speed;
 
-  // Avanzar
-  player.position.z -= speed * delta;
-
-  // Lateral
-  player.position.x += lateral * delta;
-  player.position.x = THREE.MathUtils.clamp(player.position.x, -TUNNEL_WIDTH, TUNNEL_WIDTH);
-
-  // Rotación visual
-  player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, -lateral * 0.03, 0.1);
-  player.rotation.x = THREE.MathUtils.lerp(player.rotation.x, speed > 10 ? -0.15 : 0, 0.1);
-
-  // Cámara
-  const camPos = player.position.clone().add(new THREE.Vector3(0, 1.8, 5));
-  camera.position.lerp(camPos, 0.1);
+  camera.position.copy(player.position).add(new THREE.Vector3(0, 2, 5));
+  camera.lookAt(player.position.x, player.position.y + 2, player.position.z - 5);
 }
 
-// === COLISIONES ===
-function checkCollisions() {
-  rings.forEach(ring => {
-    const dist = player.position.distanceTo(ring.position);
+function checkRingCollisions() {
+  rings.forEach(r => {
+    const dist = player.position.distanceTo(r.position);
     if (dist < 10) {
       score += 10;
-      scoreEl.textContent = `SCORE: ${score}`;
-      respawnRing(ring);
+      scoreElement.innerHTML = `SCORE: ${score}`;
+      r.position.z = -200 - Math.random() * 200;
+      r.position.x = (Math.random() - 0.5) * 200;
+      r.position.y = Math.random() * 10 + 2;
     }
   });
 }
 
-function respawnRing(ring) {
-  ring.position.z = player.position.z - 300 - Math.random() * 200;
-  ring.position.x = (Math.random() - 0.5) * 200;
-  ring.position.y = Math.random() * 20;
-}
-
-// === TIMER ===
 function startTimer() {
   const interval = setInterval(() => {
     if (gameOver) return clearInterval(interval);
-    timeLeft--;
-    timerEl.textContent = `TIME: ${timeLeft}s`;
-    if (timeLeft <= 0) endGame();
+
+    gameTime--;
+    timerElement.innerHTML = `TIME: ${gameTime}s`;
+
+    if (gameTime <= 0) {
+      clearInterval(interval);
+      endGame();
+    }
   }, 1000);
 }
 
 function endGame() {
   gameOver = true;
-  finalScoreEl.textContent = score;
-  gameOverEl.style.display = 'flex';
+  finalScore.textContent = score;
+
+  scoreElement.style.display = 'none';
+  timerElement.style.display = 'none';
+  endScreen.style.display = 'flex';
 }
 
-// === REINICIAR CON A ===
-document.addEventListener('keydown', e => {
-  if (gameOver && e.code === 'KeyA') location.reload();
-});
-
-// === RESIZE ===
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
-// === LOOP ===
 function animate() {
-  const delta = renderer.xr.isPresenting ? 0.016 : performance.now() / 1000;
-  if (!gameOver) {
-    updatePlayer(delta);
-    checkCollisions();
+  renderer.setAnimationLoop(() => {
+    const delta = clock.getDelta();
+    if (!gameOver && gameStarted) {
+      updatePlayer(delta);
+      checkRingCollisions();
 
-    // Mover aros
-    rings.forEach(r => {
-      r.position.z += (10 + speed * 0.1) * delta;
-      r.rotation.z += r.userData.speed;
-      if (r.position.z > player.position.z + 50) respawnRing(r);
-    });
-  }
+      rings.forEach(r => {
+        r.position.z += 8 * delta;
+        r.rotation.z += r.userData.rotationSpeed;
 
-  renderer.render(scene, camera);
-  renderer.setAnimationLoop(animate);
+        r.userData.hue = (r.userData.hue + r.userData.colorSpeed) % 360;
+        const newColor = new THREE.Color(`hsl(${r.userData.hue}, 100%, 60%)`);
+        r.material.color.copy(newColor);
+        r.material.emissive.copy(newColor.clone().multiplyScalar(0.5));
+
+        if (r.position.z > 50) {
+          r.position.z = -200 - Math.random() * 200;
+          r.position.x = (Math.random() - 0.5) * 200;
+        }
+      });
+    }
+
+    renderer.render(scene, camera);
+  });
 }
