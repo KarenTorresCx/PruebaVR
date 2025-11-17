@@ -30,8 +30,8 @@ scene.background = textureCube
 
 //manager
 const manager = new THREE.LoadingManager();
-// // Modelos GLB
-// const loaderGLB = new GLTFLoader(manager);
+// Modelos GLB
+const loaderGLB = new GLTFLoader(manager);
 
 //orbit
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -46,43 +46,43 @@ scene.add( cube );
 
 camera.position.z = 5;
 
-// //Modelos GLB
-// function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
-//   loaderGLB.load(filePath, function (gltf) {
-//     const model = gltf.scene;
-//     model.position.set(position.x, position.y, position.z);
-//     model.scale.set(scale.x, scale.y, scale.z);
-//     model.rotation.set(rotation.x, rotation.y, rotation.z);
-//     model.castShadow = true;
-//     model.receiveShadow = true;
-//     scene.add(model);
-//   }, undefined, function (error) {
-//     console.error('Error loading GLB model:', error);
-//   });
-// }
+//Modelos GLB
+function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
+  loaderGLB.load(filePath, function (gltf) {
+    const model = gltf.scene;
+    model.position.set(position.x, position.y, position.z);
+    model.scale.set(scale.x, scale.y, scale.z);
+    model.rotation.set(rotation.x, rotation.y, rotation.z);
+    model.castShadow = true;
+    model.receiveShadow = true;
+    scene.add(model);
+  }, undefined, function (error) {
+    console.error('Error loading GLB model:', error);
+  });
+}
 
-// loadAndAddGLBModel(
-//   'modelos/caldero.glb',
-//   { x: -2, y: 0, z: 3},
-//   { x: 0.02, y: 0.02, z: 0.02 },
-//   { x: 0, y: 0, z: 0 },
-//   scene
-// );
+loadAndAddGLBModel(
+  'modelos/avion1.glb',
+  { x: -2, y: 0, z: 3},
+  { x: 0.02, y: 0.02, z: 0.02 },
+  { x: 0, y: 0, z: 0 },
+  scene
+);
 
-// loadAndAddGLBModel(
-//   'modelos/calabaza.glb',
-//   { x: 3, y: 0, z: -3},
-//   { x: 0.5, y: 0.5, z: 0.5 },
-//   { x: 0, y: 2.5, z: 0 },
-//   scene
-// );
-// loadAndAddGLBModel(
-//   'modelos/calabaza.glb',
-//   { x: 3, y: 0, z: -1},
-//   { x: 0.3, y: 0.3, z: 0.3 },
-//   { x: 0, y: 2.5, z: 0 },
-//   scene
-// );
+loadAndAddGLBModel(
+  'modelos/avion2.glb',
+  { x: 3, y: 0, z: -3},
+  { x: 0.5, y: 0.5, z: 0.5 },
+  { x: 0, y: 2.5, z: 0 },
+  scene
+);
+loadAndAddGLBModel(
+  'modelos/avion3.glb',
+  { x: 3, y: 0, z: -1},
+  { x: 0.3, y: 0.3, z: 0.3 },
+  { x: 0, y: 2.5, z: 0 },
+  scene
+);
 let vrController = null;
 let laserPointer = null;
 
