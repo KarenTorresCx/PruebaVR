@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>MiniJuego de Vuelo</title>
+<style>
+  body { margin: 0; overflow: hidden; }
+  #scoreUI {
+    position: fixed;
+    top: 10px; left: 10px;
+    color: white;
+    font-size: 24px;
+    font-family: Arial;
+    z-index: 10;
+  }
+  #timerUI {
+    position: fixed;
+    top: 10px; right: 10px;
+    color: white;
+    font-size: 24px;
+    font-family: Arial;
+    z-index: 10;
+  }
+  #endScreen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    font-family: Arial;
+    text-align: center;
+    padding-top: 150px;
+    font-size: 28px;
+    z-index: 50;
+  }
+  #endScreen button {
+    margin-top: 30px;
+    padding: 15px 45px;
+    font-size: 20px;
+    cursor: pointer;
+  }
+</style>
+</head>
+
+<body>
+<div id="scoreUI">Puntos: 0</div>
+<div id="timerUI">Tiempo: 60</div>
+
+<div id="endScreen">
+  <h1>¡Tiempo terminado!</h1>
+  <p>Puntaje final: <span id="finalScore">0</span></p>
+  <button onclick="location.reload()">Reiniciar</button>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js';
+import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js';
+
+// === Escena ===
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x003366);
+
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+camera.position.set(0, 1.6, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
+
+// === Luz ===
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
+
+// === Joystick ===
+let vrController = null;
+renderer.xr.addEventListener('sessionstart', () => {
+  vrController = renderer.xr.getController(0);
+  scene.add(vrController);
+});
+
+// === Aros ===
+const rings = [];
+function createRing(zPos) {
+  const geo = new THREE.TorusGeometry(1, 0.08, 16, 32);
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+  const ring = new THREE.Mesh(geo, mat);
+
+  ring.position.set(
+    (Math.random() - 0.5) * 4,
+    1.6 + (Math.random() - 0.5) * 2,
+    zPos
+  );
+  ring.rotation.x = Math.PI;
+
+  ring.userData.active = true;
+  scene.add(ring);
+  rings.push(ring);
+}
+
+for (let i = 0; i < 10; i++) {
+  createRing(-10 - i * 10);
+}
+
+// === PUNTOS Y TIEMPO ===
+let score = 0;
+let time = 60;
+const scoreUI = document.getElementById("scoreUI");
+const timerUI = document.getElementById("timerUI");
+
+setInterval(() => {
+  if (time > 0) {
+    time--;
+    timerUI.textContent = "Tiempo: " + time;
+  }
+}, 1000);
+
+// === Final del juego ===
+function endGame() {
+  document.getElementById("finalScore").textContent = score;
+  document.getElementById("endScreen").style.display = "block";
+}
+
+// === Movimiento del avión ===
+const DEADZONE = 0.3;
+function updateMovement() {
+  if (!vrController?.gamepad) return;
+
+  const axes = vrController.gamepad.axes;
+  let x = axes[0], y = axes[1];
+
+  if (Math.abs(x) < DEADZONE) x = 0;
+  if (Math.abs(y) < DEADZONE) y = 0;
+
+  camera.position.x += x * 0.05;
+  camera.position.y -= y * 0.05;
+
+  camera.position.y = THREE.MathUtils.clamp(camera.position.y, 0.5, 3);
+}
+
+// === Detectar si pasa por aro ===
+function checkRings() {
+  rings.forEach(r => {
+    if (!r.userData.active) return;
+
+    if (camera.position.distanceTo(r.position) < 1.2) {
+      r.material.color.set(0x00ff00);
+      r.userData.active = false;
+
+      score++;
+      scoreUI.textContent = "Puntos: " + score;
+    }
+  });
+}
+
+// === Animar ===
+function animate() {
+  if (time <= 0) {
+    endGame();
+    return;
+  }
+
+  updateMovement();
+  checkRings();
+
+  rings.forEach(r => {
+    r.position.z += 0.1;
+    if (r.position.z > 2) {
+      r.position.z = -80;
+      r.userData.active = true;
+      r.material.color.set(0xffff00);
+    }
+  });
+
+  renderer.render(scene, camera);
+}
+
+renderer.setAnimationLoop(animate);
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+
+</body>
+</html>
