@@ -1,107 +1,62 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { 
+  margin: 0; 
+  overflow: hidden; 
+  background: #000; 
+  font-family: Arial, sans-serif;
 }
 
-body {
-  overflow: hidden;
-  font-family: 'Arial', sans-serif;
-  background: #000;
-  touch-action: none;
-}
-
-/* ---- VR Button ---- */
-.webxr-button {
-  position: fixed !important;
-  bottom: 20px !important;
-  right: 20px !important;
-  z-index: 9999 !important;
-  width: 150px !important;
-  height: 45px !important;
-  font-size: 16px !important;
-  border-radius: 12px !important;
-  background: linear-gradient(90deg, #00ccff, #7b42ff) !important;
-  color: white !important;
-  border: none !important;
-  box-shadow: 0 0 20px #00ffff !important;
-}
-
-/* ---- Pantalla de Inicio ---- */
-#startScreen {
-  position: fixed;
-  inset: 0;
-  background: rgba(5,5,15,0.95);
+.vr-button {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  background: rgba(0, 150, 255, 0.85);
+  border-radius: 50%;
+  color: white;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  z-index: 20;
-  color: white;
-}
-
-#startScreen h1 {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
-}
-
-#startBtn {
-  margin-top: 2rem;
-  padding: 16px 40px;
-  font-size: 1.3rem;
-  color: #fff;
-  background: linear-gradient(90deg, #00ccff, #7b42ff);
-  border-radius: 14px;
-  border: none;
   cursor: pointer;
-}
-
-/* ---- HUD ---- */
-#scoreHUD, #timerHUD {
-  position: fixed;
-  top: 20px;
-  color: #00ffff;
-  font-size: 32px;
-  font-weight: bold;
+  user-select: none;
+  box-shadow: 0 0 30px rgba(0, 200, 255, 0.6);
+  transition: all 0.2s;
   z-index: 10;
-  padding: 10px 25px;
-  background: rgba(10, 20, 30, 0.6);
-  border-radius: 15px;
-  border: 2px solid rgba(0,255,255,0.4);
-  display: none;
+  border: 4px solid rgba(255, 255, 255, 0.4);
 }
 
-#scoreHUD { left: 20px; }
-#timerHUD { right: 20px; }
-
-/* ---- Pantalla Final ---- */
-#endScreen {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  color: white;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  z-index: 20;
-  text-align: center;
+.vr-button:active {
+  transform: scale(0.9);
+  background: rgba(0, 200, 255, 0.95);
 }
 
-#endScreen h1 {
-  font-size: 40px;
-  margin-bottom: 20px;
+.vr-button .icon {
+  font-size: 48px;
+  margin-bottom: 8px;
 }
 
-#endScreen button {
-  padding: 14px 28px;
-  font-size: 24px;
-  background: #00ccff;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  color: #000;
+.vr-button .text {
+  font-size: 20px;
   font-weight: bold;
-  margin-top: 20px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Botón de curiosidades (izquierda) */
+#infoButton {
+  left: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Botón de juego (derecha) */
+#gameButton {
+  right: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 200, 50, 0.9);
+}
+
+#gameButton:active {
+  background: rgba(0, 255, 80, 0.95);
 }
