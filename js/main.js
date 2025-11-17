@@ -233,6 +233,7 @@ function onSelect() {
   // 3. Botón JUEGO
   else if (obj.userData.type === "game") {
     location.href = "minigame.html";
+    }
 }
 
 // === Bucle de animación ===
