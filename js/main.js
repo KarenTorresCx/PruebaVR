@@ -47,18 +47,18 @@ const loader = new GLTFLoader();
 loader.load('modelos/avion2.glb', gltf => {
   const avion = gltf.scene;
   avion.userData.isGLTFModel = true;
-  avion.position.set(0, 1.6, -3);
+  avion.position.set(0, 2, -3);
   avion.scale.set(0.003, 0.003, 0.003);
   avion.rotation.y = Math.PI / 2;
   avion.traverse(n => { if (n.isMesh) n.castShadow = n.receiveShadow = true; });
   scene.add(avion);
 
   // === Botón CURIOSIDADES ===
-  infoSphere = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1, 4, -3, "info");
+  infoSphere = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1, 3, -3, "info");
   scene.add(infoSphere);
 
   // === Botón MINIJUEGO ===
-  gameSphere = createInteractiveButton("MINIJUEGO", 0x00cc66, 1, 4, -3, "game");
+  gameSphere = createInteractiveButton("MINIJUEGO", 0x00cc66, 1, 3, -3, "game");
   scene.add(gameSphere);
 
   // Panel de curiosidades (inicialmente oculto)
@@ -123,12 +123,11 @@ function createInfoPanel() {
   ctx.fillText('• Más de 34.000 unidades producidas', 512, 200);
   ctx.fillText('• Velocidad máxima: 700 km/h', 512, 280);
   ctx.fillText('• Armamento: 2 ametralladoras + 1 cañón', 512, 360);
-  ctx.fillText('¡Apunta y dispara para cerrar!', 512, 460);
 
   const texture = new THREE.CanvasTexture(canvas);
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
   const panel = new THREE.Mesh(new THREE.PlaneGeometry(4, 2), material);
-  panel.position.set(-1, 5, -4);
+  panel.position.set(-2, 5, -4);
   return panel;
 }
 
@@ -233,8 +232,7 @@ function onSelect() {
 
   // 3. Botón JUEGO
   else if (obj.userData.type === "game") {
-    if (confirm("¿Iniciar minijuego de vuelo?")) location.href = "minigame.html";
-  }
+    location.href = "minigame.html";
 }
 
 // === Bucle de animación ===
