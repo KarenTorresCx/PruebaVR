@@ -107,7 +107,7 @@ renderer.xr.addEventListener('sessionstart', () => {
   const controller = renderer.xr.getController(0);
   
   // ¡¡ESTAS SON LAS LÍNEAS CLAVE!!
-  controller.position.set(0, 1.4, -0.6);   // altura de ojos reales + 60 cm delante
+  controller.position.set(0, -1.4, -0.6);   // altura de ojos reales + 60 cm delante
   // opcional: inclinarlo un poco hacia abajo para que apunte más natural
   controller.rotation.set(THREE.MathUtils.degToRad(15), 0, 0);
 
