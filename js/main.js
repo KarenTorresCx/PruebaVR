@@ -60,26 +60,27 @@ function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
     console.error('Error loading GLB model:', error);
   });
 }
-
+//verde
 loadAndAddGLBModel(
   'modelos/avion1.glb',
   { x: 0, y: 2, z: 4},
-  { x: 0.02, y: 0.02, z: 0.02 },
+  { x: 0.002, y: 0.002, z: 0.002 },
   { x: 0, y: 0, z: 0 },
   scene
 );
-
+//amarillo
 loadAndAddGLBModel(
   'modelos/avion2.glb',
   { x: 0, y: 2, z: 7},
-  { x: 0.5, y: 0.5, z: 0.5 },
+  { x: 0.05, y: 0.05, z: 0.05 },
   { x: 0, y: 2.5, z: 0 },
   scene
 );
+//rojo
 loadAndAddGLBModel(
   'modelos/avion3.glb',
   { x: 0, y: 2, z: 10},
-  { x: 0.3, y: 0.3, z: 0.3 },
+  { x: 0.03, y: 0.03, z: 0.03 },
   { x: 0, y: 2.5, z: 0 },
   scene
 );
