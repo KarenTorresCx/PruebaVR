@@ -1,196 +1,91 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { VRButton } from 'three/addons/webxr/VRButton.js';
-import nipplejs from 'nipplejs';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/webxr/VRButton.js';
 
+///scene
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB);
-
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 1.6, 5);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
+const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.xr.enabled = true;
+renderer.setAnimationLoop(animate);
 document.body.appendChild(renderer.domElement);
+renderer.xr.enabled = true;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(VRButton.createButton(renderer));
 
-// Luces
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(10, 20, 10);
-scene.add(dirLight);
+//texture HDRI
+const loader = new THREE.CubeTextureLoader();
+loader.setPath('cubemap/');
+const textureCube = loader.load([
+  'px.png', 'nx.png',
+  'py.png', 'ny.png',
+  'pz.png', 'nz.png'
+]);
+scene.background = textureCube
 
-const loader = new GLTFLoader();
+//manager
+const manager = new THREE.LoadingManager();
+// // Modelos GLB
+// const loaderGLB = new GLTFLoader(manager);
 
-// ==================== CARGAR AVIONES (funciones separadas) ====================
-async function cargarAvion1() {
-    const gltf = await loader.loadAsync('modelos/avion1.glb');
-    const avion = gltf.scene;
-    avion.position.set(0, 0, 0);
-    avion.rotation.y = Math.PI;
-    avion.scale.set(1, 1, 1);
-    scene.add(avion);
+//orbit
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.update();
+
+const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+const cube = new THREE.Mesh( geometry, material );
+scene.add( cube );
+
+camera.position.z = 5;
+
+// //Modelos GLB
+// function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
+//   loaderGLB.load(filePath, function (gltf) {
+//     const model = gltf.scene;
+//     model.position.set(position.x, position.y, position.z);
+//     model.scale.set(scale.x, scale.y, scale.z);
+//     model.rotation.set(rotation.x, rotation.y, rotation.z);
+//     model.castShadow = true;
+//     model.receiveShadow = true;
+//     scene.add(model);
+//   }, undefined, function (error) {
+//     console.error('Error loading GLB model:', error);
+//   });
+// }
+
+// loadAndAddGLBModel(
+//   'modelos/caldero.glb',
+//   { x: -2, y: 0, z: 3},
+//   { x: 0.02, y: 0.02, z: 0.02 },
+//   { x: 0, y: 0, z: 0 },
+//   scene
+// );
+
+// loadAndAddGLBModel(
+//   'modelos/calabaza.glb',
+//   { x: 3, y: 0, z: -3},
+//   { x: 0.5, y: 0.5, z: 0.5 },
+//   { x: 0, y: 2.5, z: 0 },
+//   scene
+// );
+// loadAndAddGLBModel(
+//   'modelos/calabaza.glb',
+//   { x: 3, y: 0, z: -1},
+//   { x: 0.3, y: 0.3, z: 0.3 },
+//   { x: 0, y: 2.5, z: 0 },
+//   scene
+// );
+
+function animate() {
+
+  cube.rotation.x += 0.01;
+  cube.rotation.y += 0.01;
+
+  renderer.render( scene, camera );
+
 }
-async function cargarAvion2() {
-    const gltf = await loader.loadAsync('modelos/avion2.glb');
-    const avion = gltf.scene;
-    avion.position.set(10, 0, 0);
-    avion.scale.set(0.8, 0.8, 0.8);
-    scene.add(avion);
-}
-async function cargarAvion3() {
-    const gltf = await loader.loadAsync('modelos/avion3.glb');
-    const avion = gltf.scene;
-    avion.position.set(20, 0, 0);
-    avion.scale.set(1.2, 1.2, 1.2);
-    scene.add(avion);
-}
-Promise.all([cargarAvion1(), cargarAvion2(), cargarAvion3()]);
-
-// ==================== HOTSPOTS ====================
-const hotspotMat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.7 });
-const hotspots = [];
-const posiciones = [new THREE.Vector3(2, 1.5, 0), new THREE.Vector3(12, 1.5, 0), new THREE.Vector3(22, 1.5, 0)];
-posiciones.forEach((pos, i) => {
-    const h = new THREE.Mesh(new THREE.SphereGeometry(0.5), hotspotMat);
-    h.position.copy(pos);
-    h.userData = { type: 'hotspot', action: i < 2 ? 'next' : 'game', index: i };
-    scene.add(h);
-    hotspots.push(h);
-});
-
-// ==================== MINIJUEGO ====================
-let enJuego = false;
-let score = 0;
-const targets = [];
-
-function iniciarMiniJuego() {
-    enJuego = true;
-    hotspots.forEach(h => h.visible = false);
-    for (let i = 0; i < 10; i++) {
-        const t = new THREE.Mesh(
-            new THREE.SphereGeometry(0.4),
-            new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff })
-        );
-        t.position.set(Math.random() * 20 - 10, Math.random() * 5 + 1, Math.random() * 20 - 15);
-        t.userData = { type: 'target' };
-        scene.add(t);
-        targets.push(t);
-    }
-}
-
-// ==================== RETÍCULO (solo visual) ====================
-const reticle = new THREE.Mesh(
-    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.8, transparent: true })
-);
-reticle.visible = false;
-scene.add(reticle);
-
-// ==================== JOYSTICK VIRTUAL ====================
-let moveForward = 0, moveRight = 0;
-const joyZone = document.createElement('div');
-joyZone.style.position = 'absolute';
-joyZone.style.left = '30px';
-joyZone.style.bottom = '30px';
-joyZone.style.width = '150px';
-joyZone.style.height = '150px';
-document.body.appendChild(joyZone);
-
-const joystick = nipplejs.create({
-    zone: joyZone,
-    mode: 'static',
-    position: { left: '50%', bottom: '50%' },
-    color: 'white',
-    size: 120
-});
-
-joystick.on('move', (evt, data) => {
-    moveForward = Math.sin(data.angle.radian) * data.force * 2;
-    moveRight = Math.cos(data.angle.radian) * data.force * 2;
-});
-joystick.on('end', () => { moveForward = moveRight = 0; });
-
-const clock = new THREE.Clock();
-
-// ==================== FUNCIÓN PRINCIPAL DE SELECCIÓN (gaze + gatillo) ====================
-const raycaster = new THREE.Raycaster();
-
-function seleccionarObjetoMirado() {
-    raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-    const intersects = raycaster.intersectObjects(scene.children, true);
-    if (intersects.length === 0) return null;
-    return intersects[0].object;
-}
-
-function ejecutarAccion(obj) {
-    if (!obj?.userData) return;
-
-    if (obj.userData.type === 'hotspot') {
-        if (obj.userData.action === 'next') {
-            const nextX = (obj.userData.index + 1) * 10;
-            camera.position.set(nextX, 1.6, 5);
-        } else if (obj.userData.action === 'game') {
-            iniciarMiniJuego();
-        }
-    } else if (obj.userData.type === 'target') {
-        scene.remove(obj);
-        targets.splice(targets.indexOf(obj), 1);
-        score++;
-        if (targets.length === 0) {
-            alert(`¡Juego terminado! Puntuación: ${score}`);
-            location.reload(); // reinicia
-        }
-    }
-}
-
-// GATILLO VR BOX → evento "select"
-renderer.xr.addEventListener('sessionstart', () => {
-    const session = renderer.xr.getSession();
-    session.addEventListener('select', () => {
-        const obj = seleccionarObjetoMirado();
-        if (obj) ejecutarAccion(obj);
-    });
-});
-
-// ==================== LOOP ====================
-renderer.setAnimationLoop(() => {
-    const delta = clock.getDelta();
-
-    // Movimiento con joystick
-    if (renderer.xr.isPresenting && (moveForward || moveRight)) {
-        const forward = new THREE.Vector3();
-        camera.getWorldDirection(forward);
-        forward.y = 0; forward.normalize();
-
-        const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
-
-        camera.position.addScaledVector(forward, moveForward * delta * 6);
-        camera.position.addScaledVector(right, -moveRight * delta * 4);
-        if (Math.abs(moveRight) > 0.3) camera.rotation.y -= moveRight * delta * 1.2;
-    }
-
-    // Retículo visual (solo muestra dónde miras)
-    if (renderer.xr.isPresenting) {
-        const obj = seleccionarObjetoMirado();
-        if (obj && (obj.userData.type === 'hotspot' || obj.userData.type === 'target')) {
-            reticle.visible = true;
-            const intersect = raycaster.intersectObject(obj, true)[0] || raycaster.intersectObjects(scene.children, true)[0];
-            reticle.position.copy(intersect.point);
-        } else {
-            reticle.visible = false;
-        }
-    }
-
-    renderer.render(scene, camera);
-});
-
-// Resize
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
