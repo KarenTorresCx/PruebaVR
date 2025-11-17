@@ -1,76 +1,53 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <title>Cubo VR Box (ESM)</title>
-  <style>body{margin:0;overflow:hidden}</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Simulador de Vuelo VR</title>
+  <link rel="stylesheet" href="./style.css" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.167.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.167.1/examples/jsm/"
+      }
+    }
+  </script>
 </head>
+
 <body>
 
-<script type="module">
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-  console.log("Three.js cargado:", THREE);
+  <div id="startScreen">
+    <h1>Simulación de Vuelo VR</h1>
+    <p>Presiona el botón para comenzar</p>
+    <button id="startBtn">Iniciar Vuelo</button>
+  </div>
 
-  let scene = new THREE.Scene();
-  let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  let renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+  <div id="container"></div>
 
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const material = new THREE.MeshNormalMaterial();
-  const cube = new THREE.Mesh(geometry, material);
-  scene.add(cube);
-  camera.position.z = 5;
+  <div id="scoreHUD">SCORE: 0</div>
+  <div id="timerHUD">TIME: 60s</div>
 
-  // ───────────── DETECTAR CONTROL ─────────────
-  let gamepadIndex = null;
+  <div id="endScreen">
+    <h1>¡Tiempo terminado!</h1>
+    <p>Puntaje final: <strong id="finalScore">0</strong></p>
+    <button id="restartBtn">Reiniciar</button>
+  </div>
 
-  window.addEventListener("gamepadconnected", (e) => {
-      gamepadIndex = e.gamepad.index;
-      console.log("🎮 Gamepad conectado:", e.gamepad);
-  });
+  <script type="module" src="./js/main.js"></script>
 
-  let prevButtons = [];
-let prevAxes = [];
+  <script>
+    document.getElementById('startBtn').addEventListener('click', () => {
+      document.getElementById('startScreen').style.display = 'none';
+      document.body.requestFullscreen();
+      window.startGame && window.startGame();
+    });
 
-function debugGamepad() {
-    if (gamepadIndex === null) return;
-
-    const gp = navigator.getGamepads()[gamepadIndex];
-    if (!gp) return;
-
-    let changed = false;
-
-    // ------- Detectar cambio en botones -------
-    const currentButtons = gp.buttons.map(b => b.pressed);
-
-    if (JSON.stringify(currentButtons) !== JSON.stringify(prevButtons)) {
-        console.log("Botones:", currentButtons);
-        prevButtons = currentButtons;
-        changed = true;
-    }
-
-    // ------- Detectar cambio en ejes -------
-    const currentAxes = gp.axes.map(v => parseFloat(v.toFixed(2))); // redondeo para evitar ruido
-
-    if (JSON.stringify(currentAxes) !== JSON.stringify(prevAxes)) {
-        console.log("Ejes:", currentAxes);
-        prevAxes = currentAxes;
-        changed = true;
-    }
-}
-
-
-
-  function animate() {
-      requestAnimationFrame(animate);
-      debugGamepad();
-      renderer.render(scene, camera);
-  }
-  animate();
-</script>
-
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      location.reload();
+    });
+  </script>
 
 </body>
 </html>
