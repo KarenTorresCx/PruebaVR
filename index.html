@@ -2,26 +2,17 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Cubo VR Box - Paso 1</title>
+  <title>Cubo VR Box (ESM)</title>
   <style>body{margin:0;overflow:hidden}</style>
-
-  <!-- Carga Three.js antes de usarlo -->
-  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
 </head>
 <body>
 
-<script>
-  console.log("Three.js cargado:", THREE); // ← Usa esto para confirmar
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+  console.log("Three.js cargado:", THREE);
 
-  // Inicialización
   let scene = new THREE.Scene();
-  let camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-  );
-
+  let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   let renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
@@ -30,15 +21,36 @@
   const material = new THREE.MeshNormalMaterial();
   const cube = new THREE.Mesh(geometry, material);
   scene.add(cube);
-
   camera.position.z = 5;
 
+  // ───────────── DETECTAR CONTROL ─────────────
+  let gamepadIndex = null;
+
+  window.addEventListener("gamepadconnected", (e) => {
+      gamepadIndex = e.gamepad.index;
+      console.log("🎮 Gamepad conectado:", e.gamepad);
+  });
+
+  function debugGamepad() {
+      if (gamepadIndex === null) return;
+
+      const gp = navigator.getGamepads()[gamepadIndex];
+      if (!gp) return;
+
+      // Mostrar todos los botones y ejes
+      console.clear();
+      console.log("Botones:", gp.buttons.map(b => b.pressed));
+      console.log("Ejes:", gp.axes);
+  }
+
   function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+      debugGamepad();
+      renderer.render(scene, camera);
   }
   animate();
 </script>
+
 
 </body>
 </html>
