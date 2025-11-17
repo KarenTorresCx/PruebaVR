@@ -31,17 +31,24 @@ import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
       console.log("🎮 Gamepad conectado:", e.gamepad);
   });
 
-  function debugGamepad() {
-      if (gamepadIndex === null) return;
+  let lastLog = 0;
 
-      const gp = navigator.getGamepads()[gamepadIndex];
-      if (!gp) return;
+function debugGamepad() {
+    if (gamepadIndex === null) return;
+    const gp = navigator.getGamepads()[gamepadIndex];
+    if (!gp) return;
 
-      // Mostrar todos los botones y ejes
-      console.clear();
-      console.log("Botones:", gp.buttons.map(b => b.pressed));
-      console.log("Ejes:", gp.axes);
-  }
+    const now = performance.now();
+
+    // Solo loguea cada 200ms (=5 veces por segundo)
+    if (now - lastLog > 200) {
+        console.clear();
+        console.log("Botones:", gp.buttons.map(b => b.pressed));
+        console.log("Ejes:", gp.axes);
+        lastLog = now;
+    }
+}
+
 
   function animate() {
       requestAnimationFrame(animate);
