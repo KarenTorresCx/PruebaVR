@@ -150,7 +150,7 @@ function createCuriositiesSphere() {
     roughness: 0.4
   });
   infoSphere = new THREE.Mesh(geo, mat);
-  infoSphere.position.set(-2.5, 2, -3);
+  infoSphere.position.set(-2, 2, -3);
   infoSphere.userData.clickable = true;
   infoSphere.userData.type = "info";
   scene.add(infoSphere);
@@ -177,7 +177,7 @@ function createPlayButton() {
   const geo = new THREE.BoxGeometry(1.2, 0.6, 0.2);
   const mat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
   playButton = new THREE.Mesh(geo, mat);
-  playButton.position.set(-2.5, 1, -3);
+  playButton.position.set(2, 2, -3);
   playButton.userData.clickable = true;
   playButton.userData.type = "play";
   scene.add(playButton);
