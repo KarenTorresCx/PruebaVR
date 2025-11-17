@@ -53,7 +53,7 @@
 
         // ==================== CARGAR AVIONES (funciones separadas) ====================
         async function cargarAvion1() {
-            const gltf = await loader.loadAsync('models/plane1.glb');
+            const gltf = await loader.loadAsync('modelos/avion1.glb');
             const avion = gltf.scene;
             avion.position.set(0, 0, 0);
             avion.rotation.y = Math.PI;
@@ -61,14 +61,14 @@
             scene.add(avion);
         }
         async function cargarAvion2() {
-            const gltf = await loader.loadAsync('models/plane2.glb');
+            const gltf = await loader.loadAsync('modelos/avion2.glb');
             const avion = gltf.scene;
             avion.position.set(10, 0, 0);
             avion.scale.set(0.8, 0.8, 0.8);
             scene.add(avion);
         }
         async function cargarAvion3() {
-            const gltf = await loader.loadAsync('models/plane3.glb');
+            const gltf = await loader.loadAsync('modelos/avion3.glb');
             const avion = gltf.scene;
             avion.position.set(20, 0, 0);
             avion.scale.set(1.2, 1.2, 1.2);
