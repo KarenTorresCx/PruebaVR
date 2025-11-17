@@ -57,21 +57,21 @@
             const avion = gltf.scene;
             avion.position.set(0, 0, 0);
             avion.rotation.y = Math.PI;
-            avion.scale.set(1, 1, 1);
+            avion.scale.set(0.3, 0.3, 0.3);
             scene.add(avion);
         }
         async function cargarAvion2() {
             const gltf = await loader.loadAsync('modelos/avion2.glb');
             const avion = gltf.scene;
             avion.position.set(10, 0, 0);
-            avion.scale.set(0.8, 0.8, 0.8);
+            avion.scale.set(0.005, 0.005, 0.005);
             scene.add(avion);
         }
         async function cargarAvion3() {
             const gltf = await loader.loadAsync('modelos/avion3.glb');
             const avion = gltf.scene;
             avion.position.set(20, 0, 0);
-            avion.scale.set(1.2, 1.2, 1.2);
+            avion.scale.set(0.1, 0.1, 0.1);
             scene.add(avion);
         }
         Promise.all([cargarAvion1(), cargarAvion2(), cargarAvion3()]);
