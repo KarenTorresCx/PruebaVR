@@ -26,12 +26,10 @@ let vrController = null;
 let laserPointer = null;
 let selectedModel = null;
 let isRotating = false;
-
-let infoButton = null;
-let gameButton = null;
-let infoPanel = null;
-
-let hoveredObject = null; // <- para hover
+let infoSphere = null;
+let gameSphere = null;
+let infoPanel = null;   
+let hoveredButton = null;
 
 // === Láser rojo ===
 const laserGeo = new THREE.BufferGeometry().setFromPoints([
@@ -40,88 +38,9 @@ const laserGeo = new THREE.BufferGeometry().setFromPoints([
 ]);
 laserPointer = new THREE.Line(
   laserGeo,
-  new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4, transparent: true, opacity: 0.8 })
+  new THREE.LineBasicMaterial({color:0xff0000, transparent:true, opacity:0.8})
 );
 laserPointer.visible = false;
-
-// === Función PARA BOTONES INTERACTIVOS ===
-function createInteractiveButton(label, color, x, y, z, type, width = 1.6, height = 0.8) {
-  // Panel base
-  const baseMaterial = new THREE.MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity: 0.95,
-    side: THREE.DoubleSide
-  });
-
-  const button = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    baseMaterial
-  );
-  button.position.set(x, y, z);
-  button.userData.type = type;
-  button.userData.baseColor = color;
-
-  // Texto
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '60px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const textMaterial = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    side: THREE.DoubleSide
-  });
-
-  const textMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    textMaterial
-  );
-  textMesh.position.z = 0.001;
-  button.add(textMesh);
-
-  return button;
-}
-
-// === Panel 3D de curiosidades ===
-function createInfoPanel() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#000a';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '60px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('CURIOSIDADES DEL BF 109', 512, 100);
-  ctx.font = '40px Arial';
-  ctx.fillText('• Más de 34.000 unidades producidas', 512, 200);
-  ctx.fillText('• Velocidad máxima: 700 km/h', 512, 280);
-  ctx.fillText('• Armamento: 2 ametralladoras + 1 cañón', 512, 360);
-  ctx.fillText('¡Dispara para cerrar!', 512, 460);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    side: THREE.DoubleSide
-  });
-
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(4, 2), material);
-  panel.position.set(-1, 5, -4);
-  return panel;
-}
 
 // === Cargar avión ===
 const loader = new GLTFLoader();
@@ -134,21 +53,132 @@ loader.load('modelos/avion2.glb', gltf => {
   avion.traverse(n => { if (n.isMesh) n.castShadow = n.receiveShadow = true; });
   scene.add(avion);
 
-  // Botón información
-  infoButton = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1.2, 3, -3, "info");
-  scene.add(infoButton);
+  // === Botón CURIOSIDADES ===
+  infoSphere = createInteractiveButton("CURIOSIDADES", 0x0066ff, -1, 7, -3, "info");
+  scene.add(infoSphere);
 
-  // Botón minijuego
-  gameButton = createInteractiveButton("MINIJUEGO", 0x00cc66, 1.2, 3, -3, "game");
-  scene.add(gameButton);
+  // === Botón MINIJUEGO ===
+  gameSphere = createInteractiveButton("MINIJUEGO", 0x00cc66, 1, 7, -3, "game");
+  scene.add(gameSphere);
 
-  // Panel oculto
+  // Panel de curiosidades (inicialmente oculto)
   infoPanel = createInfoPanel();
   infoPanel.visible = false;
   scene.add(infoPanel);
 });
 
-// === Controlador VR ===
+// === Crear botón 3D interactivo ===
+function createInteractiveButton(label, color, x, y, z, type, width = 1.2, height = 0.6) {
+
+  const geo = new THREE.PlaneGeometry(width, height);
+  const mat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide
+  });
+
+  const button = new THREE.Mesh(geo, mat);
+  button.position.set(x, y, z);
+  button.userData.type = type;
+
+  // Texto encima del botón
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '50px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const textMaterial = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true
+  });
+
+  const textMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), textMaterial);
+  textMesh.position.z = 0.001;
+  button.add(textMesh);
+
+  return button;
+}
+
+// === Panel de curiosidades 3D ===
+function createInfoPanel() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '60px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('CURIOSIDADES DEL BF 109', 512, 100);
+  ctx.font = '40px Arial';
+  ctx.fillText('• Más de 34.000 unidades producidas', 512, 200);
+  ctx.fillText('• Velocidad máxima: 700 km/h', 512, 280);
+  ctx.fillText('• Armamento: 2 ametralladoras + 1 cañón', 512, 360);
+  ctx.fillText('¡Apunta y dispara para cerrar!', 512, 460);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(4, 2), material);
+  panel.position.set(-1, 5, -4);
+  return panel;
+}
+
+// === Hover VR ===
+function highlightButton(button) {
+  button.material.color.setHex(0xffff66);
+  button.material.opacity = 1;
+  button.children[0].material.opacity = 1;
+}
+
+function resetButtonColor(button) {
+  if (button.userData.type === "info") button.material.color.setHex(0x0066ff);
+  if (button.userData.type === "game") button.material.color.setHex(0x00cc66);
+
+  button.material.opacity = 0.9;
+  button.children[0].material.opacity = 1;
+}
+
+function checkHover() {
+  if (!vrController) return;
+
+  const raycaster = new THREE.Raycaster();
+  const origin = new THREE.Vector3();
+  const direction = new THREE.Vector3(0,0,-1).applyQuaternion(vrController.quaternion);
+
+  raycaster.ray.set(vrController.getWorldPosition(origin), direction);
+
+  const intersects = raycaster.intersectObjects(scene.children, true);
+
+  if (intersects.length > 0) {
+    let obj = intersects[0].object;
+    while (obj && !obj.userData.type) obj = obj.parent;
+
+    if (obj && obj.userData.type) {
+      if (hoveredButton !== obj) {
+        if (hoveredButton) resetButtonColor(hoveredButton);
+        highlightButton(obj);
+        hoveredButton = obj;
+      }
+      return;
+    }
+  }
+
+  if (hoveredButton) {
+    resetButtonColor(hoveredButton);
+    hoveredButton = null;
+  }
+}
+
+// === Controlador VRBox ===
 renderer.xr.addEventListener('sessionstart', () => {
   const controller = renderer.xr.getController(0);
   controller.position.set(0, 1.6, 0.5);
@@ -156,97 +186,63 @@ renderer.xr.addEventListener('sessionstart', () => {
   controller.add(laserPointer);
   scene.add(controller);
   vrController = controller;
-
   controller.addEventListener('select', onSelect);
 });
 
-// === Zona Muerta Joystick ===
+// Zona muerta del joystick
 const DEADZONE = 0.25;
 function handleController() {
   if (!vrController?.gamepad) return;
-  let x = vrController.gamepad.axes[0] || 0;
-  let y = vrController.gamepad.axes[1] || 0;
-
+  const a = vrController.gamepad.axes;
+  let x = a[0] || 0, y = a[1] || 0;
   if (Math.abs(x) < DEADZONE) x = 0;
   if (Math.abs(y) < DEADZONE) y = 0;
-
   vrController.rotation.y -= x * 0.08;
   vrController.rotation.x -= y * 0.08;
   vrController.rotation.x = THREE.MathUtils.clamp(vrController.rotation.x, -1.4, 0.8);
 }
 
-// === HOVER (iluminación al apuntar) ===
-function checkHover() {
-  if (!vrController) return;
-
-  const raycaster = new THREE.Raycaster();
-  const origin = new THREE.Vector3();
-  const direction = new THREE.Vector3(0, 0, -1);
-  direction.applyQuaternion(vrController.quaternion);
-
-  raycaster.ray.set(vrController.getWorldPosition(origin), direction);
-
-  const hits = raycaster.intersectObjects([infoButton, gameButton], true);
-
-  if (hits.length > 0) {
-    const obj = hits[0].object.parent; // botón base
-
-    if (hoveredObject !== obj) {
-      if (hoveredObject) {
-        hoveredObject.material.color.set(hoveredObject.userData.baseColor);
-      }
-      obj.material.color.set(0xffff00); // hover en amarillo
-      hoveredObject = obj;
-    }
-  } else {
-    if (hoveredObject) {
-      hoveredObject.material.color.set(hoveredObject.userData.baseColor);
-      hoveredObject = null;
-    }
-  }
-}
-
-// === Clic con gatillo ===
+// === Click principal VR ===
 function onSelect() {
-  if (!vrController) return;
-
   const raycaster = new THREE.Raycaster();
   const origin = new THREE.Vector3();
-  const direction = new THREE.Vector3(0, 0, -1);
-  direction.applyQuaternion(vrController.quaternion);
+  const direction = new THREE.Vector3(0,0,-1).applyQuaternion(vrController.quaternion);
   raycaster.ray.set(vrController.getWorldPosition(origin), direction);
 
   const hits = raycaster.intersectObjects(scene.children, true);
-  if (hits.length === 0) return;
+  if (hits.length === 0) {
+    if (infoPanel && infoPanel.visible) infoPanel.visible = false;
+    return;
+  }
 
   let obj = hits[0].object;
-  while (obj && !obj.userData.type && !obj.userData.isGLTFModel) obj = obj.parent;
+  while (obj && !obj.userData.isGLTFModel && !obj.userData.type) obj = obj.parent;
   if (!obj) return;
 
-  // Avión → rotación
+  // 1. Rotar el avión
   if (obj.userData.isGLTFModel) {
     if (selectedModel === obj) isRotating = !isRotating;
     else { selectedModel = obj; isRotating = true; }
-    infoPanel.visible = false;
+    if (infoPanel) infoPanel.visible = false;
   }
 
-  // Botón info
+  // 2. Botón INFO
   else if (obj.userData.type === "info") {
     infoPanel.visible = true;
   }
 
-  // Botón minijuego
+  // 3. Botón JUEGO
   else if (obj.userData.type === "game") {
-    location.href = "minigame.html";
+    if (confirm("¿Iniciar minijuego de vuelo?")) location.href = "minigame.html";
   }
 }
 
-// === Bucle animación ===
+// === Bucle de animación ===
 function animate() {
   if (vrController) {
     handleController();
     laserPointer.visible = true;
-    checkHover(); // <- HOVER ACTIVADO
+    checkHover();
   } else {
     laserPointer.visible = false;
   }
