@@ -41,7 +41,7 @@ controls.update();
 const geometry = new THREE.BoxGeometry( 1, 1, 1 );
 const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 const cube = new THREE.Mesh( geometry, material );
-cube.position.set(0, 2, -5);
+cube.position.set(0, 2, -3);
 scene.add( cube );
 
 camera.position.z = 5;
