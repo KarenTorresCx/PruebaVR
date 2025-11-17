@@ -1,256 +1,198 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+const scene = new THREE.Scene();
 
-let camera, scene, renderer, clock;
-let player, rings = [];
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-let cabina, score = 0;
-let scoreElement, timerElement, endScreen, finalScore;
-let gameOver = false;
-let gameTime = 60;
-let gameStarted = false;
+scene.background = new THREE.Color(0x87CEEB);
 
-// GAMEPAD
-let lastButtons = [];
-let lastAxes = [];
-let gamepadConnected = false;
-const AXIS_THRESHOLD = 0.25;
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 1.6, 5);
 
-export function startGame() {
-  if (!gameStarted) {
-    gameStarted = true;
-    init();
-    animate();
-  }
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
+
+// Luces
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+
+// Controles desktop
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+const loader = new GLTFLoader();
+
+// ==================== CARGA DE MODELOS POR SEPARADO ====================
+//amarillo
+async function cargarAvion1() {
+    const gltf = await loader.loadAsync('modelos/avion1.glb');
+    const avion = gltf.scene;
+    avion.position.set(0, 0, 0);
+    avion.scale.set(0.3, 0.3, 0.3);
+    avion.traverse(child => { if (child.isMesh) child.castShadow = true; });
+    scene.add(avion);
+    return avion
 }
-window.startGame = startGame;
-
-function init() {
-  scoreElement = document.getElementById('scoreHUD');
-  timerElement = document.getElementById('timerHUD');
-  endScreen = document.getElementById('endScreen');
-  finalScore = document.getElementById('finalScore');
-
-  scoreElement.style.display = 'block';
-  timerElement.style.display = 'block';
-
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  renderer.xr.enabled = true;
-  document.getElementById('container')?.appendChild(renderer.domElement);
-
-  document.body.appendChild(VRButton.createButton(renderer));
-
-  scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x0f0f1f, 0.001);
-
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-  camera.position.set(0, 2, 5);
-
-  const cubeLoader = new THREE.CubeTextureLoader();
-  cubeLoader.setPath('cubemap/');
-  const textureCube = cubeLoader.load(['px.png','nx.png','py.png','ny.png','pz.png','nz.png']);
-  scene.background = textureCube;
-
-  const textureLoader = new THREE.TextureLoader();
-
-  const playerGeometry = new THREE.CapsuleGeometry(0.5, 1.5, 8, 16);
-  const playerMaterial = new THREE.MeshBasicMaterial({ visible: false });
-  player = new THREE.Mesh(playerGeometry, playerMaterial);
-  scene.add(player);
-
-  const cabinaTexture = textureLoader.load('textures/avionhud.png');
-  const cabinaMaterial = new THREE.MeshBasicMaterial({
-    map: cabinaTexture,
-    transparent: true,
-    opacity: 1,
-    side: THREE.DoubleSide,
-    depthTest: false
-  });
-
-  const aspect = window.innerWidth / window.innerHeight;
-  const hudHeight = 2;
-  const hudWidth = hudHeight * aspect;
-
-  cabina = new THREE.Mesh(new THREE.PlaneGeometry(hudWidth, hudHeight), cabinaMaterial);
-  cabina.position.set(0, 0, -1.4);
-  camera.add(cabina);
-  scene.add(camera);
-
-  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-  const sun = new THREE.DirectionalLight(0x99ccff, 1.2);
-  sun.position.set(100, 100, 50);
-  sun.castShadow = true;
-  scene.add(sun);
-
-  generateRings(30);
-
-  document.addEventListener('keydown', onKeyDown);
-  document.addEventListener('keyup', onKeyUp);
-
-  window.addEventListener("gamepadconnected", e => {
-    console.log("Gamepad conectado:", e.gamepad);
-    gamepadConnected = true;
-    trackGamepad();
-  });
-
-  window.addEventListener("resize", onWindowResize);
-
-  clock = new THREE.Clock();
-  startTimer();
+//verde
+async function cargarAvion2() {
+    const gltf = await loader.loadAsync('modelos/avion2.glb');
+    const avion = gltf.scene;
+    avion.position.set(10, 0, 0);
+    avion.rotation.y = Math.PI / 2;
+    avion.scale.set(0.005, 0.005, 0.005);
+    avion.traverse(child => { if (child.isMesh) child.castShadow = true; });
+    scene.add(avion);
+    return avion;
+}
+//rojo
+async function cargarAvion3() {
+    const gltf = await loader.loadAsync('modelos/avion3.glb');
+    const avion = gltf.scene;
+    avion.position.set(20, 0, 0);
+    avion.scale.set(0.1, 0.1, 0.1);
+    avion.traverse(child => { if (child.isMesh) child.castShadow = true; });
+    scene.add(avion);
+    return avion;
 }
 
-function generateRings(count) {
-  const geometry = new THREE.TorusGeometry(18, 4, 16, 100);
+// Carga todos los aviones (puedes comentar los que no uses)
+Promise.all([
+    cargarAvion1(),
+    cargarAvion2(),
+    cargarAvion3()
+]).then(aviones => {
+    console.log("¡Todos los aviones cargados!", aviones);
+}).catch(err => console.error("Error cargando algún avión:", err));
 
-  for (let i = 0; i < count; i++) {
-    const color = new THREE.Color(`hsl(${Math.random() * 360}, 100%, 60%)`);
-    const material = new THREE.MeshStandardMaterial({
-      color: color,
-      metalness: 1.0,
-      roughness: 0.15,
-      emissive: color.clone().multiplyScalar(0.5),
-      emissiveIntensity: 0.7
-    });
+// ==================== HOTSPOTS (para avanzar) ====================
+const hotspotMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.7 });
+const hotspots = [];
 
-    const ring = new THREE.Mesh(geometry, material);
-    ring.rotation.x = Math.PI;
-    ring.position.set((Math.random() - 0.5) * 400, 5, -150 - i * 70 - Math.random() * 50);
+const posicionesHotspots = [
+    new THREE.Vector3(2, 1.5, 0),    //avión 1
+    new THREE.Vector3(12, 1.5, 0),   //avión 2
+    new THREE.Vector3(22, 1.5, 0)    //avión 3 Inicio mini juego
+];
 
-    ring.userData = {
-      hue: Math.random() * 360,
-      rotationSpeed: Math.random() * 0.02 + 0.01,
-      colorSpeed: 0.5 + Math.random() * 0.5
-    };
+posicionesHotspots.forEach((pos, i) => {
+    const hotspot = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), hotspotMaterial);
+    hotspot.position.copy(pos);
+    hotspot.userData = { action: i < 2 ? 'next' : 'game', index: i };
+    scene.add(hotspot);
+    hotspots.push(hotspot);
+});
 
-    rings.push(ring);
-    scene.add(ring);
-  }
-}
+// ==================== INTERACCIÓN POR MIRADA (GAZE) ====================
+const raycaster = new THREE.Raycaster();
+const reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.8, transparent: true })
+);
+reticle.visible = false;
+scene.add(reticle);
 
-// KEYBOARD
-function onKeyDown(e) {
-  if (gameOver) return;
-  if (e.code === 'KeyW') moveForward = true;
-  if (e.code === 'KeyS') moveBackward = true;
-  if (e.code === 'KeyA') moveLeft = true;
-  if (e.code === 'KeyD') moveRight = true;
-}
-function onKeyUp(e) {
-  if (e.code === 'KeyW') moveForward = false;
-  if (e.code === 'KeyS') moveBackward = false;
-  if (e.code === 'KeyA') moveLeft = false;
-  if (e.code === 'KeyD') moveRight = false;
-}
+let hovered = null;
+let gazeTime = 0;
+const DWELL_TIME = 2; // segundos
 
-function trackGamepad() {
-  const gp = navigator.getGamepads()[0];
-  if (!gp) {
-    requestAnimationFrame(trackGamepad);
-    return;
-  }
+let enJuego = false;
+let score = 0;
+const targets = [];
 
-  gp.buttons.forEach((btn, i) => {
-    if (btn.pressed !== lastButtons[i]) {
-      console.log("Botón", i, btn.pressed);
-      lastButtons[i] = btn.pressed;
+function iniciarMiniJuego() {
+    enJuego = true;
+    hotspots.forEach(h => h.visible = false);
 
-      if (i === 2) moveForward = btn.pressed; // Botón C
+    // Crear 8 objetivos aleatorios
+    for (let i = 0; i < 8; i++) {
+        const geo = new THREE.SphereGeometry(0.4);
+        const mat = new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff });
+        const target = new THREE.Mesh(geo, mat);
+        target.position.set(
+            (Math.random() - 0.5) * 15,
+            Math.random() * 4 + 1,
+            (Math.random() - 0.5) * 15 - 8
+        );
+        target.userData.action = 'target';
+        scene.add(target);
+        targets.push(target);
     }
-  });
-
-  gp.axes.forEach((value, i) => {
-    const v = Math.abs(value) < AXIS_THRESHOLD ? 0 : Number(value.toFixed(2));
-    if (v !== lastAxes[i]) {
-      console.log("Eje", i, v);
-      lastAxes[i] = v;
-
-      if (i === 0) { moveLeft = v < -0.3; moveRight = v > 0.3; }
-      if (i === 1) { moveForward = v < -0.3; moveBackward = v > 0.3; }
-    }
-  });
-
-  requestAnimationFrame(trackGamepad);
+    console.log("¡Mini juego iniciado! Destruye todos los objetivos.");
 }
 
-function updatePlayer(delta) {
-  const speed = 20 * delta;
-  if (moveForward) player.position.z -= speed;
-  if (moveBackward) player.position.z += speed;
-  if (moveLeft) player.position.x -= speed;
-  if (moveRight) player.position.x += speed;
-
-  camera.position.copy(player.position).add(new THREE.Vector3(0, 2, 5));
-  camera.lookAt(player.position.x, player.position.y + 2, player.position.z - 5);
-}
-
-function checkRingCollisions() {
-  rings.forEach(r => {
-    const dist = player.position.distanceTo(r.position);
-    if (dist < 10) {
-      score += 10;
-      scoreElement.innerHTML = `SCORE: ${score}`;
-      r.position.z = -200 - Math.random() * 200;
-      r.position.x = (Math.random() - 0.5) * 200;
-      r.position.y = Math.random() * 10 + 2;
-    }
-  });
-}
-
-function startTimer() {
-  const interval = setInterval(() => {
-    if (gameOver) return clearInterval(interval);
-
-    gameTime--;
-    timerElement.innerHTML = `TIME: ${gameTime}s`;
-
-    if (gameTime <= 0) {
-      clearInterval(interval);
-      endGame();
-    }
-  }, 1000);
-}
-
-function endGame() {
-  gameOver = true;
-  finalScore.textContent = score;
-
-  scoreElement.style.display = 'none';
-  timerElement.style.display = 'none';
-  endScreen.style.display = 'flex';
-}
-
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
+// ==================== LOOP DE ANIMACIÓN ====================
 function animate() {
-  renderer.setAnimationLoop(() => {
-    const delta = clock.getDelta();
-    if (!gameOver && gameStarted) {
-      updatePlayer(delta);
-      checkRingCollisions();
+    renderer.setAnimationLoop(() => {
+        if (renderer.xr.isPresenting) {
+            // ---- MODO VR (mirada) ----
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
 
-      rings.forEach(r => {
-        r.position.z += 8 * delta;
-        r.rotation.z += r.userData.rotationSpeed;
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
 
-        r.userData.hue = (r.userData.hue + r.userData.colorSpeed) % 360;
-        const newColor = new THREE.Color(`hsl(${r.userData.hue}, 100%, 60%)`);
-        r.material.color.copy(newColor);
-        r.material.emissive.copy(newColor.clone().multiplyScalar(0.5));
+                if (obj.userData.action && obj !== hovered) {
+                    hovered = obj;
+                    reticle.visible = true;
+                    reticle.position.copy(intersects[0].point);
+                    gazeTime = 0;
+                }
+            } else {
+                reticle.visible = false;
+                hovered = null;
+                gazeTime = 0;
+            }
 
-        if (r.position.z > 50) {
-          r.position.z = -200 - Math.random() * 200;
-          r.position.x = (Math.random() - 0.5) * 200;
+            if (hovered) {
+                gazeTime += 1 / 60;
+                // Progreso visual del retículo (opcional)
+                reticle.scale.set(1 + gazeTime / DWELL_TIME * 0.5, 1 + gazeTime / DWELL_TIME * 0.5, 1);
+
+                if (gazeTime >= DWELL_TIME) {
+                    // ---- ACCIÓN ----
+                    if (hovered.userData.action === 'next') {
+                        const nextIndex = hovered.userData.index + 1;
+                        const nuevaPos = new THREE.Vector3(10 * nextIndex, 1.6, 5);
+                        camera.position.lerp(nuevaPos, 0.3);
+                    } else if (hovered.userData.action === 'game') {
+                        iniciarMiniJuego();
+                    } else if (hovered.userData.action === 'target') {
+                        scene.remove(hovered);
+                        targets.splice(targets.indexOf(hovered), 1);
+                        score++;
+                        console.log("¡Impacto! Puntos:", score);
+                        if (targets.length === 0) {
+                            console.log("¡GANASTE! Puntuación final:", score);
+                            enJuego = false;
+                        }
+                    }
+                    hovered = null;
+                    reticle.visible = false;
+                    gazeTime = 0;
+                }
+            } else {
+                reticle.scale.set(1, 1, 1);
+            }
+        } else {
+            // ---- MODO ESCRITORIO ----
+            controls.update();
         }
-      });
-    }
 
-    renderer.render(scene, camera);
-  });
+        renderer.render(scene, camera);
+    });
 }
+
+animate();
+
+// Resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
