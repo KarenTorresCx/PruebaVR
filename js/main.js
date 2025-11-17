@@ -132,31 +132,6 @@ function handleController(controller) {
   // Limitar arriba/abajo
   controller.rotation.x = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, controller.rotation.x));
 }
-
-// Raycast al hacer clic
-function performRaycastClick() {
-  if (!vrController) return;
-
-  const tempMatrix = new THREE.Matrix4();
-  tempMatrix.identity().extractRotation(vrController.matrixWorld);
-
-  const raycaster = new THREE.Raycaster();
-  raycaster.ray.origin.setFromMatrixPosition(vrController.matrixWorld);
-  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
-  const intersects = raycaster.intersectObjects(scene.children, true);
-
-  if (intersects.length > 0) {
-    const obj = intersects[0].object;
-    console.log("Tocaste:", obj);
-
-    if (obj === cube) {
-      cube.material.color.set(Math.random() * 0xffffff);
-      cube.scale.set(1.5, 1.5, 1.5);
-      setTimeout(() => cube.scale.set(1, 1, 1), 200);
-    }
-  }
-}// ================================================================
 // NUEVAS FUNCIONALIDADES (agregar al final de tu main.js)
 // ================================================================
 
