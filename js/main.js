@@ -43,7 +43,7 @@ const material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
 const cube = new THREE.Mesh( geometry, material );
 scene.add( cube );
 
-camera.position.z = 5;
+camera.position.z = 15;
 
 // //Modelos GLB
 // function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
@@ -107,7 +107,7 @@ renderer.xr.addEventListener('sessionstart', () => {
   const controller = renderer.xr.getController(0);
   
   // ¡¡ESTAS SON LAS LÍNEAS CLAVE!!
-  controller.position.set(0, 10, 0);   // altura de ojos
+  controller.position.set(0, 0, 10);   // altura de ojos
   controller.rotation.set(THREE.MathUtils.degToRad(15), 0, 0);
 
   controller.add(laserPointer);
