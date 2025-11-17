@@ -106,10 +106,8 @@ const SENSITIVITY = 3.0;
 renderer.xr.addEventListener('sessionstart', () => {
   const controller = renderer.xr.getController(0);
   
-  // ¡¡ESTAS SON LAS LÍNEAS CLAVE!!
-  controller.position.set(0, 0, 0);   // altura de ojos reales + 60 cm delante
-  // opcional: inclinarlo un poco hacia abajo para que apunte más natural
-  controller.rotation.set(THREE.MathUtils.degToRad(15), 0, 0);
+controller.position.set(0.4, 1.2, -0.5);   // un poco a la derecha y delante
+controller.rotation.set(THREE.MathUtils.degToRad(20), THREE.MathUtils.degToRad(-10), 0);
 
   controller.add(laserPointer);
   scene.add(controller);
