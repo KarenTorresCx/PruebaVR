@@ -47,9 +47,9 @@ loader.load('modelos/avion2.glb', gltf => {
   scene.add(avionModel);
 
   // --- Esfera Curiosidades ---
-  infoSphere = createInteractiveSphere(0x0088ff, -3, 3, -3, 'info');
+  infoSphere = createInteractiveSphere(0x0088ff, -3, 4, -3, 'info');
   // --- Esfera Minijuego ---
-  gameSphere = createInteractiveSphere(0x00ff88, 3, 3, -3, 'game');
+  gameSphere = createInteractiveSphere(0x00ff88, 3, 4, -3, 'game');
 });
 
 // Crear esferas interactivas
