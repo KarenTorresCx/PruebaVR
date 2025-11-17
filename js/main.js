@@ -62,7 +62,7 @@ function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
 }
 //verde
 loadAndAddGLBModel(
-  'modelos/avionV.glb',
+  'modelos/avion2.glb',
   { x: 0, y: 2, z: -3},
   { x: 0.003, y: 0.003, z: 0.003 },
   { x: 0, y: Math.PI/2, z: 0 },
