@@ -63,25 +63,25 @@ function loadAndAddGLBModel(filePath, position, scale, rotation, scene) {
 //amarillo
 loadAndAddGLBModel(
   'modelos/avion1.glb',
-  { x: 0, y: 2, z: 0},
-  { x: 0.02, y: 0.02, z: 0.02 },
+  { x: 0, y: 2, z: -3},
+  { x: 0.2, y: 0.2, z: 0.2 },
   { x: 0, y: 0, z: 0 },
   scene
 );
 //verde
 loadAndAddGLBModel(
   'modelos/avion2.glb',
-  { x: 5, y: 2, z: 0},
-  { x: 0.005, y: 0.005, z: 0.005 },
-  { x: 0, y: 2.5, z: 0 },
+  { x: 5, y: 2, z: -3},
+  { x: 0.003, y: 0.003, z: 0.003 },
+  { x: 0, y: Math.PI/2, z: 0 },
   scene
 );
 //rojo
 loadAndAddGLBModel(
   'modelos/avion3.glb',
-  { x: 10, y: 2, z: 0},
-  { x: 0.03, y: 0.03, z: 0.03 },
-  { x: 0, y: 2.5, z: 0 },
+  { x: 10, y: 2, z: -3},
+  { x: 0.3, y: 0.3, z: 0.3 },
+  { x: 0, y: 0, z: 0 },
   scene
 );
 let vrController = null;
